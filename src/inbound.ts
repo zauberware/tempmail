@@ -8,13 +8,15 @@ const MAX_EML_BYTES = 950 * 1024; // D1 Row-Limit ~1MB, Sicherheitsmarge
 
 type AttachmentContent = string | ArrayBuffer | Uint8Array | undefined;
 
-// btoa unterstuetzt nur Latin-1. Fuer beliebige Bytes brauchen wir den
-// "alle Bytes als char codes" Trick.
+// btoa unterstuetzt nur Latin-1. Wir baufen den binary string Byte-fuer-Byte
+// im Loop ohne spread — verschiedene Runtimes haben unerwartetes Verhalten
+// bei String.fromCharCode(...largeArray) (entweder Stack-Overflow oder
+// silent corruption). Dieser straightforward Loop ist langsamer, aber
+// 100% deterministisch.
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
   }
   return btoa(binary);
 }
@@ -97,6 +99,13 @@ export default {
     const parsedAttachments = (parsed.attachments ?? []).map((a, idx) => {
       const bytes = attachmentBytes(a.content);
       const u8 = new Uint8Array(bytes);
+      const peek = Array.from(u8.subarray(0, 16))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" ");
+      const b64 = bytesToBase64(u8);
+      console.log(
+        `att #${idx} ${a.filename} u8_len=${u8.length} peek=[${peek}] b64_len=${b64.length}`,
+      );
       return {
         idx,
         filename: a.filename ?? `attachment-${idx}`,
@@ -104,7 +113,7 @@ export default {
         contentId: (a.contentId ?? "").replace(/^<|>$/g, "") || null,
         disposition: a.disposition ?? null,
         size: bytes.byteLength,
-        contentB64: bytesToBase64(u8),
+        contentB64: b64,
       };
     });
     const attachmentsMeta = parsedAttachments.map(
