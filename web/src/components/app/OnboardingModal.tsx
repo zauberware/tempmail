@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Hourglass, Copy, RefreshCw, ShieldCheck, Keyboard, X } from "lucide-react";
+import { Mail, Copy, RefreshCw, ShieldCheck, Keyboard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n-context";
 
@@ -42,7 +42,7 @@ export function OnboardingModal({ open, address, onClose }: Props) {
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Hourglass className="size-5" />
+              <Mail className="size-5" />
             </div>
             <div>
               <h2 id="onboarding-title" className="text-lg font-semibold">
