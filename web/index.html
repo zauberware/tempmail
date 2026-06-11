@@ -1,7 +1,19 @@
 <!doctype html>
-<html lang="de" class="dark">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Inline theme bootstrap — verhindert Flash-of-Wrong-Theme beim Laden.
+      (function () {
+        try {
+          var stored = localStorage.getItem("tempmail.theme");
+          var theme = stored || "system";
+          var prefers = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var dark = theme === "dark" || (theme === "system" && prefers);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%89%EF%B8%8F%3C/text%3E%3C/svg%3E"

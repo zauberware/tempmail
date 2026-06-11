@@ -1,16 +1,28 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Mail } from "lucide-react";
 import { AddressBar } from "@/components/app/AddressBar";
 import { MessageList } from "@/components/app/MessageList";
 import { MessageDetail } from "@/components/app/MessageDetail";
+import { EmptyInbox } from "@/components/app/EmptyInbox";
+import { HelpOverlay } from "@/components/app/HelpOverlay";
 import { api } from "@/lib/api";
 import { randomLocal } from "@/lib/random";
 import { useInbox } from "@/hooks/useInbox";
+import { useInboxHistory } from "@/hooks/useInboxHistory";
 
 const POLL_MS = 5000;
 
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+}
+
 export default function App() {
+  const qc = useQueryClient();
   const { inbox, setInbox } = useInbox();
+  const { entries: history, remove: removeFromHistory } = useInboxHistory(inbox?.address);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const poolQ = useQuery({
@@ -44,9 +56,80 @@ export default function App() {
     refetchIntervalInBackground: false,
   });
 
+  const clearMut = useMutation({
+    mutationFn: () => api.clearInbox(inbox!.address),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messages", inbox?.address] });
+      setActiveId(null);
+    },
+  });
+
   const apply = (local: string, domain: string) => {
     createInbox.mutate({ local, domain });
   };
+
+  const onSwitch = (addr: string) => {
+    const at = addr.lastIndexOf("@");
+    if (at < 0) return;
+    apply(addr.slice(0, at), addr.slice(at + 1));
+  };
+
+  const onRefresh = () => {
+    qc.invalidateQueries({ queryKey: ["messages", inbox?.address] });
+  };
+
+  const onClear = () => {
+    if (!inbox || (messagesQ.data?.messages.length ?? 0) === 0) return;
+    if (confirm(`Alle ${messagesQ.data?.messages.length} Mails in ${inbox.address} löschen?`)) {
+      clearMut.mutate();
+    }
+  };
+
+  const onNew = () => {
+    if (!poolQ.data || poolQ.data.domains.length === 0) return;
+    const d = poolQ.data.domains[Math.floor(Math.random() * poolQ.data.domains.length)]!;
+    apply(randomLocal(), d);
+  };
+
+  const messages = messagesQ.data?.messages ?? [];
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (isTyping(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const key = e.key;
+
+      if (key === "j" || key === "ArrowDown") {
+        e.preventDefault();
+        if (!messages.length) return;
+        const i = activeId ? messages.findIndex((m) => m.id === activeId) : -1;
+        const next = messages[Math.min(i + 1, messages.length - 1)];
+        if (next) setActiveId(next.id);
+      } else if (key === "k" || key === "ArrowUp") {
+        e.preventDefault();
+        if (!messages.length) return;
+        const i = activeId ? messages.findIndex((m) => m.id === activeId) : 0;
+        const prev = messages[Math.max(i - 1, 0)];
+        if (prev) setActiveId(prev.id);
+      } else if (key === "r") {
+        e.preventDefault();
+        onRefresh();
+      } else if (key === "c") {
+        e.preventDefault();
+        if (inbox) navigator.clipboard.writeText(inbox.address).catch(() => undefined);
+      } else if (key === "n") {
+        e.preventDefault();
+        onNew();
+      } else if (key === "E" && e.shiftKey) {
+        e.preventDefault();
+        onClear();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, activeId, inbox]);
 
   if (!inbox || !poolQ.data) {
     return (
@@ -56,8 +139,6 @@ export default function App() {
     );
   }
 
-  const messages = messagesQ.data?.messages ?? [];
-
   return (
     <div className="flex h-full flex-col">
       <AddressBar
@@ -65,7 +146,12 @@ export default function App() {
         pool={poolQ.data.domains}
         messageCount={messages.length}
         isFetching={messagesQ.isFetching}
+        history={history}
         onApply={apply}
+        onSwitch={onSwitch}
+        onHistoryRemove={removeFromHistory}
+        onRefresh={onRefresh}
+        onClear={onClear}
       />
       <main className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[360px_1fr]">
         <div className="min-h-0 border-b border-border md:border-b-0 md:border-r">
@@ -74,16 +160,27 @@ export default function App() {
             messages={messages}
             activeId={activeId}
             onSelect={setActiveId}
+            isLoading={messagesQ.isLoading}
           />
         </div>
         <div className="min-h-0 overflow-hidden">
-          <MessageDetail
-            address={inbox.address}
-            messageId={activeId}
-            onDeleted={() => setActiveId(null)}
-          />
+          {messages.length === 0 ? (
+            <EmptyInbox address={inbox.address} />
+          ) : activeId ? (
+            <MessageDetail
+              address={inbox.address}
+              messageId={activeId}
+              onDeleted={() => setActiveId(null)}
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+              <Mail className="size-12 opacity-30" />
+              <p className="text-sm">{messages.length} Mails — links auswählen oder <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">j</kbd> drücken</p>
+            </div>
+          )}
         </div>
       </main>
+      <HelpOverlay />
     </div>
   );
 }

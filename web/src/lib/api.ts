@@ -37,9 +37,18 @@ export const api = {
       method: "DELETE",
     }),
 
+  clearInbox: (address: string) =>
+    jsonFetch<{ ok: true; deleted: number }>(
+      `/api/inboxes/${encodeURIComponent(address)}/messages`,
+      { method: "DELETE" },
+    ),
+
   rawUrl: (address: string, id: string) =>
     `/api/inboxes/${encodeURIComponent(address)}/messages/${id}/raw`,
 
   attachmentUrl: (address: string, id: string, filename: string) =>
     `/api/inboxes/${encodeURIComponent(address)}/messages/${id}/attachments/${encodeURIComponent(filename)}`,
+
+  cidUrl: (address: string, id: string, cid: string) =>
+    `/api/inboxes/${encodeURIComponent(address)}/messages/${id}/cid/${encodeURIComponent(cid)}`,
 };

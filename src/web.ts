@@ -155,6 +155,36 @@ app.delete("/api/inboxes/:address/messages/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Inline-Bild via Content-ID (z.B. cid:abc123 in HTML-Mails)
+app.get("/api/inboxes/:address/messages/:id/cid/:cid", async (c) => {
+  const address = c.req.param("address").toLowerCase();
+  const id = c.req.param("id");
+  const wanted = c.req.param("cid").replace(/^<|>$/g, "");
+  const row = await getMessageWithRaw(c.env, address, id);
+  if (!row) return c.json({ error: "not_found" }, 404);
+  const parsed = await PostalMime.parse(row.raw_eml);
+  const att = (parsed.attachments ?? []).find((a) => {
+    const cid = (a.contentId || "").replace(/^<|>$/g, "");
+    return cid === wanted;
+  });
+  if (!att || !att.content) return c.json({ error: "cid_not_found" }, 404);
+  return new Response(attachmentBytes(att.content), {
+    headers: {
+      "Content-Type": att.mimeType || "application/octet-stream",
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
+});
+
+// Alle Mails einer Inbox löschen ("Postfach leeren")
+app.delete("/api/inboxes/:address/messages", async (c) => {
+  const address = c.req.param("address").toLowerCase();
+  const res = await c.env.DB.prepare(`DELETE FROM messages WHERE inbox_address = ?`)
+    .bind(address)
+    .run();
+  return c.json({ ok: true, deleted: res.meta?.changes ?? 0 });
+});
+
 // Alles, was nicht API/Health ist: an die statischen Assets (React SPA) durchreichen.
 // Basic Auth gilt weiterhin, weil die Middleware vorher läuft.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));

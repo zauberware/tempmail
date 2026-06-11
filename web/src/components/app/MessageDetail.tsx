@@ -1,11 +1,15 @@
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2, Paperclip, Mail } from "lucide-react";
+import { Download, Trash2, Paperclip, Image as ImageIcon, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { rewriteCids, stripRemote } from "@/lib/html";
 import type { Address } from "@/lib/types";
+import { Avatar } from "./Avatar";
 
 function addrStr(a: Address | null | undefined): string {
   if (!a) return "(unknown)";
@@ -20,70 +24,84 @@ function bytesFmt(n: number): string {
 
 interface Props {
   address: string;
-  messageId: string | null;
+  messageId: string;
   onDeleted: () => void;
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border p-5">
+        <Skeleton className="mb-3 h-6 w-2/3" />
+        <Skeleton className="mb-2 h-3 w-1/3" />
+        <Skeleton className="mb-2 h-3 w-1/2" />
+        <Skeleton className="h-3 w-1/4" />
+      </div>
+      <div className="space-y-3 p-5">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-5/6" />
+        <Skeleton className="h-3 w-4/6" />
+        <Skeleton className="h-3 w-3/6" />
+      </div>
+    </div>
+  );
 }
 
 export function MessageDetail({ address, messageId, onDeleted }: Props) {
   const qc = useQueryClient();
+  const [loadRemote, setLoadRemote] = useState(false);
 
   const { data: msg, isLoading } = useQuery({
     queryKey: ["message", address, messageId],
-    queryFn: () => api.getMessage(address, messageId!),
-    enabled: !!messageId,
+    queryFn: () => api.getMessage(address, messageId),
   });
 
   const del = useMutation({
-    mutationFn: () => api.deleteMessage(address, messageId!),
+    mutationFn: () => api.deleteMessage(address, messageId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messages", address] });
       onDeleted();
     },
   });
 
-  if (!messageId) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-        <Mail className="size-12 opacity-30" />
-        <p className="text-sm">Wähle links eine Mail aus oder warte auf die nächste.</p>
-      </div>
+  const processedHtml = useMemo(() => {
+    if (!msg?.html) return "";
+    const withCids = rewriteCids(msg.html, msg.attachments, (cid) =>
+      api.cidUrl(address, msg.id, cid),
     );
-  }
+    return loadRemote ? withCids : stripRemote(withCids);
+  }, [msg, address, loadRemote]);
 
   if (isLoading || !msg) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        lade…
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   const rawUrl = api.rawUrl(address, msg.id);
+  const hasRemote = !!msg.html && /https?:\/\//.test(msg.html);
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-3 border-b border-border p-5">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">
-            {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
-          </h1>
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Von</dt>
-            <dd className="truncate">{addrStr(msg.from)}</dd>
-            <dt className="text-muted-foreground">An</dt>
-            <dd className="truncate">
-              {(msg.to ?? []).map((a) => a.address).join(", ") || (
-                <span className="italic text-muted-foreground">(keine Empfänger)</span>
-              )}
-            </dd>
-            <dt className="text-muted-foreground">Empfangen</dt>
-            <dd>
-              {new Date(msg.received_at).toLocaleString()}{" "}
-              <span className="text-muted-foreground">· {bytesFmt(msg.size_bytes)}</span>
-            </dd>
-          </dl>
+        <div className="flex min-w-0 flex-1 gap-3">
+          <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-semibold">
+              {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
+            </h1>
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+              <dt className="text-muted-foreground">Von</dt>
+              <dd className="truncate">{addrStr(msg.from)}</dd>
+              <dt className="text-muted-foreground">An</dt>
+              <dd className="truncate">{(msg.to ?? []).map((a) => a.address).join(", ")}</dd>
+              <dt className="text-muted-foreground">Empfangen</dt>
+              <dd>
+                {new Date(msg.received_at).toLocaleString()}{" "}
+                <span className="text-muted-foreground">· {bytesFmt(msg.size_bytes)}</span>
+              </dd>
+            </dl>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button variant="outline" size="sm" asChild>
             <a href={rawUrl} download={`${msg.id}.eml`}>
               <Download /> .eml
@@ -120,19 +138,37 @@ export function MessageDetail({ address, messageId, onDeleted }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden p-5">
+      <div className="flex flex-1 flex-col overflow-hidden p-5">
         <Tabs defaultValue={msg.html ? "html" : "text"} className="flex h-full flex-col">
-          <TabsList>
-            {msg.html && <TabsTrigger value="html">HTML</TabsTrigger>}
-            <TabsTrigger value="text">Text</TabsTrigger>
-            <TabsTrigger value="headers">Headers</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <TabsList>
+              {msg.html && <TabsTrigger value="html">HTML</TabsTrigger>}
+              <TabsTrigger value="text">Text</TabsTrigger>
+              <TabsTrigger value="headers">Headers</TabsTrigger>
+            </TabsList>
+            {msg.html && hasRemote && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLoadRemote((v) => !v)}
+                className="gap-2 text-xs"
+              >
+                {loadRemote ? <ImageOff className="size-3" /> : <ImageIcon className="size-3" />}
+                {loadRemote ? "Externe Inhalte blockieren" : "Externe Bilder/Stylesheets laden"}
+              </Button>
+            )}
+          </div>
           {msg.html && (
             <TabsContent
               value="html"
               className="mt-3 flex-1 overflow-hidden rounded-md border border-border bg-white"
             >
-              <iframe title="email html" sandbox="" srcDoc={msg.html} className="size-full" />
+              <iframe
+                title="email html"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                srcDoc={processedHtml}
+                className="size-full"
+              />
             </TabsContent>
           )}
           <TabsContent value="text" className="mt-3 flex-1 overflow-hidden">
