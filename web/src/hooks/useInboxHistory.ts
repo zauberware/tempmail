@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { lsGetMigrated } from "@/lib/ls";
 
-const LS_KEY = "tempmail.inbox.history";
+const LS_KEY = "tempus.inbox.history";
+const LS_KEY_LEGACY = "tempmail.inbox.history";
 const MAX = 10;
 
 export interface InboxHistoryEntry {
@@ -10,7 +12,7 @@ export interface InboxHistoryEntry {
 
 function read(): InboxHistoryEntry[] {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = lsGetMigrated(LS_KEY, LS_KEY_LEGACY);
     return raw ? (JSON.parse(raw) as InboxHistoryEntry[]) : [];
   } catch {
     return [];

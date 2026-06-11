@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Seedet lokale D1 mit ein paar Beispiel-Mails (raw_eml als BLOB), damit man die UI sofort sieht.
-// Usage:   npm run seed -- [inbox-adresse]
+// Seeds the local D1 with a few example mails (raw_eml as BLOB) so the UI has
+// something to render right away.
+// Usage:   npm run seed -- [inbox-address]
 // Default: demo@temp.zauberware.org
 import { execSync } from "node:child_process";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
@@ -20,12 +21,12 @@ function attachmentSize(content) {
 const inbox = (process.argv[2] || "demo@temp.zauberware.org").toLowerCase();
 const [, domain] = inbox.split("@");
 if (!domain) {
-  console.error("Ungültige Inbox-Adresse:", inbox);
+  console.error("Invalid inbox address:", inbox);
   process.exit(1);
 }
 
 const now = Date.now();
-const tmp = mkdtempSync(join(tmpdir(), "tempmail-seed-"));
+const tmp = mkdtempSync(join(tmpdir(), "tempus-seed-"));
 
 function buildEml({ from, to, subject, date, parts }) {
   // parts: [{ headers: {...}, body: string|Buffer }]
@@ -35,7 +36,7 @@ function buildEml({ from, to, subject, date, parts }) {
     `To: ${to}`,
     `Subject: ${subject}`,
     `Date: ${new Date(date).toUTCString()}`,
-    `Message-ID: <${ulid()}@tempmail.local>`,
+    `Message-ID: <${ulid()}@tempus.local>`,
     `MIME-Version: 1.0`,
   ];
   if (parts.length === 1) {
@@ -223,14 +224,14 @@ const mails = [
   },
 ];
 
-// SQL für inbox + messages bauen
+// Build SQL for inbox + messages
 const sqlEsc = (v) =>
   v === null || v === undefined ? "NULL" : `'${String(v).replace(/'/g, "''")}'`;
 
 const toHex = (buf) => "X'" + Buffer.from(buf).toString("hex").toUpperCase() + "'";
 
 const inserts = [
-  // Bereits seeded Mails dieser Inbox aufräumen, damit re-seeden idempotent ist.
+  // Wipe previously seeded mails for this inbox so re-seeding stays idempotent.
   `DELETE FROM messages WHERE inbox_address = ${sqlEsc(inbox)};`,
   `INSERT INTO inboxes (address, created_at, last_seen_at, owner_token)
    VALUES (${sqlEsc(inbox)}, ${now}, ${now}, ${sqlEsc("seed-" + ulid())})
@@ -241,7 +242,7 @@ for (const m of mails) {
   const id = ulid();
   const eml = m.build(inbox, m.receivedAt, m.subject);
 
-  // Genauso parsen wie der Inbound-Worker, damit die parsed Spalten gefüllt sind.
+  // Parse the same way the inbound worker does so the parsed columns are filled.
   const parsed = await PostalMime.parse(eml);
 
   const text = parsed.text ?? null;
@@ -273,19 +274,19 @@ for (const m of mails) {
 const sqlFile = join(tmp, "seed.sql");
 writeFileSync(sqlFile, inserts.join("\n"), "utf8");
 
-console.log(`→ seede Inbox: ${inbox}`);
-console.log(`→ ${mails.length} Test-Mails`);
+console.log(`→ seeding inbox: ${inbox}`);
+console.log(`→ ${mails.length} test mails`);
 
 try {
-  console.log("\n[1/1] D1 (lokal) schreiben …");
+  console.log("\n[1/1] writing to D1 (local) …");
   execSync(`npx wrangler d1 execute tempmail --local --file=${sqlFile}`, {
     stdio: "inherit",
   });
 
-  console.log("\n✅ fertig. Im Browser:");
+  console.log("\n✅ done. In the browser:");
   console.log(`   → http://localhost:8787`);
-  console.log(`   → in der Address-Bar oben "${inbox.split("@")[0]}" eingeben`);
-  console.log(`   → @ ${domain} wählen → Übernehmen`);
+  console.log(`   → type "${inbox.split("@")[0]}" into the address bar at the top`);
+  console.log(`   → pick @ ${domain} → Apply`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

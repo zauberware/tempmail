@@ -19,7 +19,7 @@ export const basicAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) =
   const header = c.req.header("Authorization") ?? "";
   if (!header.startsWith("Basic ")) {
     return c.body(null, 401, {
-      "WWW-Authenticate": 'Basic realm="tempmail", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="tempus", charset="UTF-8"',
     });
   }
   let decoded = "";
@@ -27,20 +27,20 @@ export const basicAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) =
     decoded = atob(header.slice("Basic ".length).trim());
   } catch {
     return c.body(null, 401, {
-      "WWW-Authenticate": 'Basic realm="tempmail", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="tempus", charset="UTF-8"',
     });
   }
   const sep = decoded.indexOf(":");
   if (sep < 0) {
     return c.body(null, 401, {
-      "WWW-Authenticate": 'Basic realm="tempmail", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="tempus", charset="UTF-8"',
     });
   }
   const u = decoded.slice(0, sep);
   const p = decoded.slice(sep + 1);
   if (!timingSafeEqual(u, user) || !timingSafeEqual(p, pass)) {
     return c.body(null, 401, {
-      "WWW-Authenticate": 'Basic realm="tempmail", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="tempus", charset="UTF-8"',
     });
   }
   await next();

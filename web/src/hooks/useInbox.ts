@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Inbox } from "@/lib/types";
 
-const LS_KEY = "tempmail.inbox";
+import { lsGetMigrated } from "@/lib/ls";
+
+const LS_KEY = "tempus.inbox";
+const LS_KEY_LEGACY = "tempmail.inbox";
 
 function read(): Inbox | null {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = lsGetMigrated(LS_KEY, LS_KEY_LEGACY);
     return raw ? (JSON.parse(raw) as Inbox) : null;
   } catch {
     return null;

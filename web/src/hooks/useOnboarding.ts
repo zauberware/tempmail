@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { lsGetMigrated } from "@/lib/ls";
 
-const LS_KEY = "tempmail.onboarded";
+const LS_KEY = "tempus.onboarded";
+const LS_KEY_LEGACY = "tempmail.onboarded";
 
 export function useOnboarding(ready: boolean) {
   const [open, setOpen] = useState(false);
@@ -10,7 +12,7 @@ export function useOnboarding(ready: boolean) {
     if (!ready) return;
     let seen = false;
     try {
-      seen = localStorage.getItem(LS_KEY) === "1";
+      seen = lsGetMigrated(LS_KEY, LS_KEY_LEGACY) === "1";
     } catch {
       seen = false;
     }

@@ -21,12 +21,11 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-// postal-mime liefert attachment.content je nach Build entweder als
-// Uint8Array, ArrayBuffer ODER als base64-kodierten String (für binary
-// content in manchen Konfigurationen). Wir muessen alle drei Faelle
-// korrekt nach reinem Bytes-ArrayBuffer dekodieren — sonst landen bei
-// PDFs/Bildern die ASCII-Bytes des base64-Strings in D1 und der Download
-// laesst sich nicht oeffnen.
+// postal-mime returns attachment.content as either Uint8Array, ArrayBuffer,
+// OR a base64-encoded string (for binary content in some configurations).
+// All three cases need to be decoded back into a raw-bytes ArrayBuffer —
+// otherwise the ASCII bytes of the base64 string end up in D1 for PDFs/
+// images and the download is unreadable.
 function attachmentBytes(content: AttachmentContent): ArrayBuffer {
   if (!content) return new ArrayBuffer(0);
   if (typeof content === "string") {

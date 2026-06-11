@@ -76,7 +76,7 @@ All endpoints require Basic Auth.
 Example — an agent waiting for a verification mail:
 
 ```bash
-INBOX=$(curl -su $USER:$PASS https://tempmail.example.com/api/inboxes \
+INBOX=$(curl -su $USER:$PASS https://tempus.example.com/api/inboxes \
   -H 'content-type: application/json' \
   -d '{"local":"signup-test-1","domain":"nosu.tmp.example.com"}' | jq -r .address)
 
@@ -84,7 +84,7 @@ INBOX=$(curl -su $USER:$PASS https://tempmail.example.com/api/inboxes \
 
 while :; do
   N=$(curl -su $USER:$PASS \
-    "https://tempmail.example.com/api/inboxes/$INBOX/messages" \
+    "https://tempus.example.com/api/inboxes/$INBOX/messages" \
     | jq '.messages | length')
   [ "$N" -gt 0 ] && break
   sleep 3

@@ -1,4 +1,4 @@
-# Inbound Email Worker — getrennter Worker, weil Email-Trigger separates Deployment-Target.
+# Inbound email worker — kept separate because the email trigger needs its own deployment target.
 name = "tempmail-inbound"
 main = "src/inbound.ts"
 compatibility_date = "2025-01-01"
@@ -14,5 +14,5 @@ database_name = "tempmail"
 database_id = "dffa33a7-26dd-4e7d-85bd-03a652d24b19"
 migrations_dir = "migrations"
 
-# In Cloudflare Dashboard pro Pool-Domain:
+# In the Cloudflare dashboard, for every pool domain:
 #   Email -> Email Routing -> Catch-all -> Send to a Worker: tempmail-inbound

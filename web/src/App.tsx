@@ -209,7 +209,8 @@ export default function App() {
           )
         ) : (
           <SplitPane
-            storageKey="tempmail.sidebarPx"
+            storageKey="tempus.sidebarPx"
+            legacyStorageKey="tempmail.sidebarPx"
             defaultLeftPx={380}
             minLeftPx={260}
             maxLeftPx={640}

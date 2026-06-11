@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { resolveLang, type Lang, type LangPref } from "@/lib/i18n";
+import { lsGetMigrated } from "@/lib/ls";
 
-const LS_KEY = "tempmail.lang";
+const LS_KEY = "tempus.lang";
+const LS_KEY_LEGACY = "tempmail.lang";
 
 function read(): LangPref {
   try {
-    const v = localStorage.getItem(LS_KEY);
+    const v = lsGetMigrated(LS_KEY, LS_KEY_LEGACY);
     if (v === "de" || v === "en" || v === "auto") return v;
   } catch {
     /* ignore */

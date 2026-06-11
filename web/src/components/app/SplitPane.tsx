@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { lsGetMigrated } from "@/lib/ls";
 
 interface Props {
   storageKey: string;
+  legacyStorageKey?: string;
   defaultLeftPx: number;
   minLeftPx: number;
   maxLeftPx: number;
@@ -10,10 +12,20 @@ interface Props {
   right: React.ReactNode;
 }
 
-export function SplitPane({ storageKey, defaultLeftPx, minLeftPx, maxLeftPx, left, right }: Props) {
+export function SplitPane({
+  storageKey,
+  legacyStorageKey,
+  defaultLeftPx,
+  minLeftPx,
+  maxLeftPx,
+  left,
+  right,
+}: Props) {
   const [width, setWidth] = useState<number>(() => {
     try {
-      const v = localStorage.getItem(storageKey);
+      const v = legacyStorageKey
+        ? lsGetMigrated(storageKey, legacyStorageKey)
+        : localStorage.getItem(storageKey);
       const n = v ? parseInt(v, 10) : NaN;
       if (Number.isFinite(n) && n >= minLeftPx && n <= maxLeftPx) return n;
     } catch {

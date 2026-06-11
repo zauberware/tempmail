@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { lsGetMigrated } from "@/lib/ls";
 
-const LS_KEY = "tempmail.theme";
+const LS_KEY = "tempus.theme";
+const LS_KEY_LEGACY = "tempmail.theme";
 export type Theme = "light" | "dark" | "system";
 
 function applyTheme(theme: Theme) {
@@ -12,7 +14,7 @@ function applyTheme(theme: Theme) {
 
 function read(): Theme {
   try {
-    const v = localStorage.getItem(LS_KEY);
+    const v = lsGetMigrated(LS_KEY, LS_KEY_LEGACY);
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     /* ignore */

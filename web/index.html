@@ -1,12 +1,13 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <script>
-      // Inline theme bootstrap — verhindert Flash-of-Wrong-Theme beim Laden.
+      // Inline theme bootstrap — prevents the wrong theme from flashing on first paint.
       (function () {
         try {
-          var stored = localStorage.getItem("tempmail.theme");
+          var stored =
+            localStorage.getItem("tempus.theme") || localStorage.getItem("tempmail.theme");
           var theme = stored || "system";
           var prefers = window.matchMedia("(prefers-color-scheme: dark)").matches;
           var dark = theme === "dark" || (theme === "system" && prefers);
@@ -16,7 +17,7 @@
     </script>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%89%EF%B8%8F%3C/text%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B3%3C/text%3E%3C/svg%3E"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tempus</title>

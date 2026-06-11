@@ -1,5 +1,5 @@
--- R2 wird durch D1-BLOB ersetzt (kein Payment-Method-Zwang nötig).
--- Da noch keine Produktiv-Daten existieren, droppen wir messages und legen neu an.
+-- Replace R2 with a D1 BLOB column (avoids the payment-method requirement R2 has).
+-- No production data exists yet, so we drop and recreate `messages`.
 DROP TABLE IF EXISTS messages;
 
 CREATE TABLE messages (

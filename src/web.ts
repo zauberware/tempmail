@@ -152,7 +152,7 @@ app.delete("/api/inboxes/:address/messages/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// Inline-Bild via Content-ID (z.B. cid:abc123 in HTML-Mails)
+// Inline image by Content-ID (e.g. cid:abc123 references inside HTML mails).
 app.get("/api/inboxes/:address/messages/:id/cid/:cid", async (c) => {
   const address = c.req.param("address").toLowerCase();
   const id = c.req.param("id");
@@ -170,7 +170,7 @@ app.get("/api/inboxes/:address/messages/:id/cid/:cid", async (c) => {
   });
 });
 
-// Alle Mails einer Inbox löschen ("Postfach leeren")
+// Delete all messages in an inbox ("empty inbox").
 app.delete("/api/inboxes/:address/messages", async (c) => {
   const address = c.req.param("address").toLowerCase();
   const res = await c.env.DB.prepare(`DELETE FROM messages WHERE inbox_address = ?`)
@@ -179,8 +179,8 @@ app.delete("/api/inboxes/:address/messages", async (c) => {
   return c.json({ ok: true, deleted: res.meta?.changes ?? 0 });
 });
 
-// Alles, was nicht API/Health ist: an die statischen Assets (React SPA) durchreichen.
-// Basic Auth gilt weiterhin, weil die Middleware vorher läuft.
+// Anything that's not API/health falls through to the static assets (the React SPA).
+// Basic Auth still applies because the middleware ran before we get here.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
