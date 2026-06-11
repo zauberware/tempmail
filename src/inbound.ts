@@ -148,7 +148,7 @@ export default {
         now,
         originalSize,
         hasAttachments,
-        raw,
+        new Uint8Array(raw),
         preview,
         text,
         html,
@@ -165,7 +165,16 @@ export default {
           `INSERT INTO attachments
              (message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(id, a.idx, a.filename, a.mimeType, a.contentId, a.disposition, a.size, a.bytes),
+        ).bind(
+          id,
+          a.idx,
+          a.filename,
+          a.mimeType,
+          a.contentId,
+          a.disposition,
+          a.size,
+          new Uint8Array(a.bytes),
+        ),
       );
     }
 
