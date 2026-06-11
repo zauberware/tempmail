@@ -115,7 +115,7 @@ export interface AttachmentRow {
   content_id: string | null;
   disposition: string | null;
   size_bytes: number;
-  content: ArrayBuffer;
+  content_b64: string | null;
 }
 
 export async function getAttachmentByFilename(
@@ -124,7 +124,7 @@ export async function getAttachmentByFilename(
   filename: string,
 ): Promise<AttachmentRow | null> {
   return await env.DB.prepare(
-    `SELECT message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content
+    `SELECT message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content_b64
      FROM attachments
      WHERE message_id = ? AND filename = ?
      ORDER BY idx ASC
@@ -140,7 +140,7 @@ export async function getAttachmentByCid(
   cid: string,
 ): Promise<AttachmentRow | null> {
   return await env.DB.prepare(
-    `SELECT message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content
+    `SELECT message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content_b64
      FROM attachments
      WHERE message_id = ? AND content_id = ?
      LIMIT 1`,

@@ -8,6 +8,17 @@ const MAX_EML_BYTES = 950 * 1024; // D1 Row-Limit ~1MB, Sicherheitsmarge
 
 type AttachmentContent = string | ArrayBuffer | Uint8Array | undefined;
 
+// btoa unterstuetzt nur Latin-1. Fuer beliebige Bytes brauchen wir den
+// "alle Bytes als char codes" Trick.
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 // postal-mime liefert attachment.content je nach Build entweder als
 // Uint8Array, ArrayBuffer ODER als base64-kodierten String (für binary
 // content in manchen Konfigurationen). Wir muessen alle drei Faelle
@@ -84,24 +95,8 @@ export default {
     const html = parsed.html ?? null;
     const preview = (text ?? "").trim().slice(0, 500);
     const parsedAttachments = (parsed.attachments ?? []).map((a, idx) => {
-      const t =
-        a.content == null
-          ? "null"
-          : typeof a.content === "string"
-            ? "string"
-            : a.content instanceof ArrayBuffer
-              ? "ArrayBuffer"
-              : "Uint8Array";
-      const inLen =
-        a.content == null
-          ? 0
-          : typeof a.content === "string"
-            ? a.content.length
-            : (a.content as ArrayBuffer | Uint8Array).byteLength;
       const bytes = attachmentBytes(a.content);
-      console.log(
-        `attachment #${idx} ${a.filename} type=${t} in=${inLen} out=${bytes.byteLength}`,
-      );
+      const u8 = new Uint8Array(bytes);
       return {
         idx,
         filename: a.filename ?? `attachment-${idx}`,
@@ -109,7 +104,7 @@ export default {
         contentId: (a.contentId ?? "").replace(/^<|>$/g, "") || null,
         disposition: a.disposition ?? null,
         size: bytes.byteLength,
-        bytes,
+        contentB64: bytesToBase64(u8),
       };
     });
     const attachmentsMeta = parsedAttachments.map(
@@ -163,8 +158,8 @@ export default {
       stmts.push(
         env.DB.prepare(
           `INSERT INTO attachments
-             (message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             (message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content, content_b64)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           id,
           a.idx,
@@ -173,7 +168,8 @@ export default {
           a.contentId,
           a.disposition,
           a.size,
-          new Uint8Array(a.bytes),
+          new Uint8Array(0),
+          a.contentB64,
         ),
       );
     }

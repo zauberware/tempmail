@@ -74,6 +74,14 @@ app.get("/api/inboxes/:address/messages", async (c) => {
   });
 });
 
+function base64ToBytes(b64: string | null): Uint8Array {
+  if (!b64) return new Uint8Array(0);
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
 function safeJsonParse<T>(input: string | null, fallback: T): T {
   if (!input) return fallback;
   try {
@@ -128,7 +136,7 @@ app.get("/api/inboxes/:address/messages/:id/attachments/:name", async (c) => {
   }
   const att = await getAttachmentByFilename(c.env, id, name);
   if (!att) return c.json({ error: "attachment_not_found" }, 404);
-  return new Response(att.content, {
+  return new Response(base64ToBytes(att.content_b64), {
     headers: {
       "Content-Type": att.mime_type || "application/octet-stream",
       "Content-Disposition": `attachment; filename="${att.filename}"`,
@@ -154,7 +162,7 @@ app.get("/api/inboxes/:address/messages/:id/cid/:cid", async (c) => {
   }
   const att = await getAttachmentByCid(c.env, id, wanted);
   if (!att) return c.json({ error: "cid_not_found" }, 404);
-  return new Response(att.content, {
+  return new Response(base64ToBytes(att.content_b64), {
     headers: {
       "Content-Type": att.mime_type || "application/octet-stream",
       "Cache-Control": "private, max-age=3600",
