@@ -1,4 +1,4 @@
-# tempmail
+# Tempus — disposable email service
 
 Self-hosted disposable email service on Cloudflare. Web UI in the spirit of
 temp-mail.org, REST API for tests and AI agents, multi-domain pool. Runs on
