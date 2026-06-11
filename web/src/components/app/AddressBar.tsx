@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Copy,
-  Hourglass,
+  Mail,
   Shuffle,
   Check,
   RotateCw,
@@ -165,7 +165,7 @@ export function AddressBar({
       <header className="border-b border-border bg-card/40 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-3 pt-3">
           <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <Hourglass className="size-5 text-primary" />
+            <Mail className="size-5 text-primary" />
             <span>Tempus</span>
           </div>
           <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export function AddressBar({
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-border bg-card/40 px-4 py-3 backdrop-blur">
       <div className="flex items-center gap-2 font-semibold tracking-tight">
-        <Hourglass className="size-5 text-primary" />
+        <Mail className="size-5 text-primary" />
         <span>
           Temp<span className="text-muted-foreground">us</span>
         </span>
