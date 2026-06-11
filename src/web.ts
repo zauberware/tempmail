@@ -99,15 +99,15 @@ app.get("/api/inboxes/:address/messages/:id", async (c) => {
   const parsed = await PostalMime.parse(row.raw_eml);
   return c.json({
     id: row.id,
-    from: parsed.from,
-    to: parsed.to,
-    cc: parsed.cc,
-    subject: parsed.subject,
+    from: parsed.from ?? null,
+    to: parsed.to ?? [],
+    cc: parsed.cc ?? [],
+    subject: parsed.subject ?? null,
     received_at: row.received_at,
     size_bytes: row.size_bytes,
-    text: parsed.text,
-    html: parsed.html,
-    headers: parsed.headers,
+    text: parsed.text ?? null,
+    html: parsed.html ?? null,
+    headers: parsed.headers ?? [],
     attachments: (parsed.attachments ?? []).map((a) => ({
       filename: a.filename,
       mimeType: a.mimeType,

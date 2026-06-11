@@ -71,7 +71,11 @@ export function MessageDetail({ address, messageId, onDeleted }: Props) {
             <dt className="text-muted-foreground">Von</dt>
             <dd className="truncate">{addrStr(msg.from)}</dd>
             <dt className="text-muted-foreground">An</dt>
-            <dd className="truncate">{msg.to.map((a) => a.address).join(", ")}</dd>
+            <dd className="truncate">
+              {(msg.to ?? []).map((a) => a.address).join(", ") || (
+                <span className="italic text-muted-foreground">(keine Empfänger)</span>
+              )}
+            </dd>
             <dt className="text-muted-foreground">Empfangen</dt>
             <dd>
               {new Date(msg.received_at).toLocaleString()}{" "}
@@ -98,9 +102,9 @@ export function MessageDetail({ address, messageId, onDeleted }: Props) {
         </div>
       </div>
 
-      {msg.attachments.length > 0 && (
+      {(msg.attachments ?? []).length > 0 && (
         <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3">
-          {msg.attachments.map((a) => (
+          {(msg.attachments ?? []).map((a) => (
             <Badge key={a.filename} variant="outline" asChild>
               <a
                 href={api.attachmentUrl(address, msg.id, a.filename)}
