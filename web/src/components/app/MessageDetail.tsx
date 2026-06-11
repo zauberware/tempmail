@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2, Paperclip, Image as ImageIcon, ImageOff } from "lucide-react";
+import { Download, Trash2, Paperclip, Image as ImageIcon, ImageOff, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +26,7 @@ interface Props {
   address: string;
   messageId: string;
   onDeleted: () => void;
+  onBack?: () => void;
 }
 
 function DetailSkeleton() {
@@ -47,7 +48,7 @@ function DetailSkeleton() {
   );
 }
 
-export function MessageDetail({ address, messageId, onDeleted }: Props) {
+export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) {
   const qc = useQueryClient();
   const [loadRemote, setLoadRemote] = useState(false);
 
@@ -81,8 +82,19 @@ export function MessageDetail({ address, messageId, onDeleted }: Props) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-3 border-b border-border p-5">
+      <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
         <div className="flex min-w-0 flex-1 gap-3">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              aria-label="Zurück zur Liste"
+              className="shrink-0"
+            >
+              <ArrowLeft />
+            </Button>
+          )}
           <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold">

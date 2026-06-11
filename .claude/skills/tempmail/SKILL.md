@@ -1,6 +1,6 @@
 ---
 name: tempmail
-description: Erstellt Wegwerf-E-Mail-Adressen auf temp.zauberware.org und liest eingehende Mails per REST-API. Nutze diesen Skill für Signup-Flow-Tests, Account-Verifizierung, Magic-Link- und OTP-Workflows, Confirmation-Codes abfangen, oder wann immer ein Service eine echte E-Mail-Adresse braucht und du den Inhalt programmatisch abgreifen willst. Triggerwörter: tempmail, temp mail, wegwerf-mail, disposable email, bestätigungsmail, confirmation email, magic link testen, signup testen, OTP abfangen.
+description: Erstellt Wegwerf-E-Mail-Adressen auf tempus.zauberware.org und liest eingehende Mails per REST-API. Nutze diesen Skill für Signup-Flow-Tests, Account-Verifizierung, Magic-Link- und OTP-Workflows, Confirmation-Codes abfangen, oder wann immer ein Service eine echte E-Mail-Adresse braucht und du den Inhalt programmatisch abgreifen willst. Triggerwörter: tempmail, temp mail, wegwerf-mail, disposable email, bestätigungsmail, confirmation email, magic link testen, signup testen, OTP abfangen.
 ---
 
 # tempmail
@@ -16,7 +16,7 @@ Credentials erwartet in env vars `TEMPMAIL_USER` und `TEMPMAIL_PASS`. Prüfen:
 [ -n "$TEMPMAIL_USER" ] && [ -n "$TEMPMAIL_PASS" ] && echo "ok" || echo "missing"
 ```
 
-Wenn missing: User fragen ("Welcher Basic-Auth-User/Pass für temp.zauberware.org?")
+Wenn missing: User fragen ("Welcher Basic-Auth-User/Pass für tempus.zauberware.org?")
 und ihm sagen, dass er das einmalig in seine `~/.zshrc` setzen soll:
 
 ```bash
@@ -24,14 +24,14 @@ export TEMPMAIL_USER='...'
 export TEMPMAIL_PASS='...'
 ```
 
-Base-URL: `https://temp.zauberware.org` (Production). Falls der User eine andere
+Base-URL: `https://tempus.zauberware.org` (Production). Falls der User eine andere
 Instanz nutzt, frag nach `TEMPMAIL_URL` und ersetze unten entsprechend.
 
 ## Verfügbare Pool-Domains abfragen
 
 ```bash
 curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  https://temp.zauberware.org/api/pool | jq -r '.domains[]'
+  https://tempus.zauberware.org/api/pool | jq -r '.domains[]'
 ```
 
 Gibt eine Liste wie `nosu.temp.zauberware.org`, `kuno.temp.zauberware.org` etc. zurück.
@@ -42,7 +42,7 @@ Domain blockt, eine andere probieren.
 
 ```bash
 ADDR=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  -X POST https://temp.zauberware.org/api/inboxes \
+  -X POST https://tempus.zauberware.org/api/inboxes \
   -H 'content-type: application/json' \
   -d '{"local":"signup-test-'$(date +%s)'"}' \
   | jq -r .address)
@@ -70,7 +70,7 @@ wait_for_mail() {
   while [ "$elapsed" -lt "$timeout" ]; do
     local n
     n=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-      "https://temp.zauberware.org/api/inboxes/$addr/messages" \
+      "https://tempus.zauberware.org/api/inboxes/$addr/messages" \
       | jq '.messages | length')
     if [ "$n" -gt 0 ]; then return 0; fi
     sleep 2
@@ -90,12 +90,12 @@ Sleeps. Maximal 60-90s als sinnvoller Default, danach Fehler werfen.
 ```bash
 # Neueste Mail-ID
 ID=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages" \
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages" \
   | jq -r '.messages[0].id')
 
 # Komplette geparste Mail
 curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages/$ID" > /tmp/mail.json
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages/$ID" > /tmp/mail.json
 ```
 
 Struktur von `/tmp/mail.json`:
@@ -131,21 +131,21 @@ jq -r '.text' /tmp/mail.json | grep -oE 'Code:[[:space:]]*[0-9]{6}' | grep -oE '
 
 ```bash
 curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  -X DELETE "https://temp.zauberware.org/api/inboxes/$ADDR/messages/$ID"
+  -X DELETE "https://tempus.zauberware.org/api/inboxes/$ADDR/messages/$ID"
 ```
 
 ## Rohe .eml herunterladen
 
 ```bash
 curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages/$ID/raw" > mail.eml
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages/$ID/raw" > mail.eml
 ```
 
 ## Anhang herunterladen
 
 ```bash
 curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages/$ID/attachments/invoice.pdf" \
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages/$ID/attachments/invoice.pdf" \
   > invoice.pdf
 ```
 
@@ -154,7 +154,7 @@ curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
 ```bash
 # 1) Inbox holen
 ADDR=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  -X POST https://temp.zauberware.org/api/inboxes \
+  -X POST https://tempus.zauberware.org/api/inboxes \
   -H 'content-type: application/json' \
   -d '{"local":"e2e-'$(date +%s)'"}' | jq -r .address)
 echo "→ test inbox: $ADDR"
@@ -167,16 +167,16 @@ curl -fsSL -X POST https://app-under-test.example/signup \
 echo "→ warte auf confirmation mail …"
 for i in $(seq 1 30); do
   N=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-    "https://temp.zauberware.org/api/inboxes/$ADDR/messages" | jq '.messages | length')
+    "https://tempus.zauberware.org/api/inboxes/$ADDR/messages" | jq '.messages | length')
   [ "$N" -gt 0 ] && break
   sleep 2
 done
 
 # 4) Magic-Link extrahieren und aufrufen
 ID=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages" | jq -r '.messages[0].id')
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages" | jq -r '.messages[0].id')
 LINK=$(curl -fsSL -u "$TEMPMAIL_USER:$TEMPMAIL_PASS" \
-  "https://temp.zauberware.org/api/inboxes/$ADDR/messages/$ID" \
+  "https://tempus.zauberware.org/api/inboxes/$ADDR/messages/$ID" \
   | jq -r '.text' | grep -oE 'https?://[^[:space:]<>"]+' | head -1)
 echo "→ verify link: $LINK"
 curl -fsSL "$LINK"

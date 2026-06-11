@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Mail, Copy, RefreshCw, ShieldCheck, Keyboard, X } from "lucide-react";
+import { Hourglass, Copy, RefreshCw, ShieldCheck, Keyboard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -30,7 +30,7 @@ export function OnboardingModal({ open, address, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal
@@ -39,11 +39,11 @@ export function OnboardingModal({ open, address, onClose }: Props) {
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Mail className="size-5" />
+              <Hourglass className="size-5" />
             </div>
             <div>
               <h2 id="onboarding-title" className="text-lg font-semibold">
-                Willkommen bei tempmail
+                Willkommen bei Tempus
               </h2>
               <p className="text-sm text-muted-foreground">
                 Wegwerf-Mail für Tests, Signups und KI-Agents.
@@ -77,16 +77,15 @@ export function OnboardingModal({ open, address, onClose }: Props) {
           <li className="flex gap-3">
             <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
             <div>
-              <b>Eingehende Mails</b> tauchen automatisch auf — alle 5 Sekunden
-              neuer Refresh. Adresse wechseln über das Feld oben.
+              <b>Eingehende Mails</b> tauchen automatisch auf — alle 5 Sekunden neuer Refresh.
+              Adresse wechseln über das Feld oben.
             </div>
           </li>
           <li className="flex gap-3">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
             <div>
-              <b>Auto-Cleanup:</b> Mails ≥7 Tage und Inboxen ≥30 Tage inaktiv
-              werden gelöscht. Nutze die History (🕘) um zu früheren Adressen
-              zurückzuspringen.
+              <b>Auto-Cleanup:</b> Mails ≥7 Tage und Inboxen ≥30 Tage inaktiv werden gelöscht. Nutze
+              die History (🕘) um zu früheren Adressen zurückzuspringen.
             </div>
           </li>
           <li className="flex gap-3">

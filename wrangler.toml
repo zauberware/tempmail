@@ -29,5 +29,5 @@ run_worker_first = true
 #   BASIC_AUTH_PASS
 
 [[routes]]
-pattern = "temp.zauberware.org"
+pattern = "tempus.zauberware.org"
 custom_domain = true

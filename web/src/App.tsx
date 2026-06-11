@@ -13,6 +13,7 @@ import { randomLocal } from "@/lib/random";
 import { useInbox } from "@/hooks/useInbox";
 import { useInboxHistory } from "@/hooks/useInboxHistory";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 const POLL_MS = 5000;
 
@@ -96,6 +97,7 @@ export default function App() {
   };
 
   const onboarding = useOnboarding(!!inbox && !!poolQ.data);
+  const isMobile = useIsMobile();
 
   const messages = messagesQ.data?.messages ?? [];
 
@@ -145,6 +147,39 @@ export default function App() {
     );
   }
 
+  const list = (
+    <MessageList
+      address={inbox.address}
+      messages={messages}
+      activeId={activeId}
+      onSelect={setActiveId}
+      isLoading={messagesQ.isLoading}
+    />
+  );
+
+  const rightPane =
+    messages.length === 0 ? (
+      <EmptyInbox address={inbox.address} />
+    ) : activeId ? (
+      <MessageDetail
+        address={inbox.address}
+        messageId={activeId}
+        onDeleted={() => setActiveId(null)}
+        onBack={isMobile ? () => setActiveId(null) : undefined}
+      />
+    ) : (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+        <Mail className="size-12 opacity-30" />
+        <p className="text-sm">
+          {messages.length} Mails — links auswählen oder{" "}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
+            j
+          </kbd>{" "}
+          drücken
+        </p>
+      </div>
+    );
+
   return (
     <div className="flex h-full flex-col">
       <AddressBar
@@ -153,6 +188,7 @@ export default function App() {
         messageCount={messages.length}
         isFetching={messagesQ.isFetching}
         history={history}
+        isMobile={isMobile}
         onApply={apply}
         onSwitch={onSwitch}
         onHistoryRemove={removeFromHistory}
@@ -162,43 +198,18 @@ export default function App() {
         onShowShortcuts={() => helpTriggerRef.current()}
       />
       <main className="min-h-0 flex-1">
-        <SplitPane
-          storageKey="tempmail.sidebarPx"
-          defaultLeftPx={380}
-          minLeftPx={260}
-          maxLeftPx={640}
-          left={
-            <MessageList
-              address={inbox.address}
-              messages={messages}
-              activeId={activeId}
-              onSelect={setActiveId}
-              isLoading={messagesQ.isLoading}
-            />
-          }
-          right={
-            messages.length === 0 ? (
-              <EmptyInbox address={inbox.address} />
-            ) : activeId ? (
-              <MessageDetail
-                address={inbox.address}
-                messageId={activeId}
-                onDeleted={() => setActiveId(null)}
-              />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-                <Mail className="size-12 opacity-30" />
-                <p className="text-sm">
-                  {messages.length} Mails — links auswählen oder{" "}
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
-                    j
-                  </kbd>{" "}
-                  drücken
-                </p>
-              </div>
-            )
-          }
-        />
+        {isMobile ? (
+          activeId || messages.length === 0 ? rightPane : list
+        ) : (
+          <SplitPane
+            storageKey="tempmail.sidebarPx"
+            defaultLeftPx={380}
+            minLeftPx={260}
+            maxLeftPx={640}
+            left={list}
+            right={rightPane}
+          />
+        )}
       </main>
       <HelpOverlay onMount={(open) => (helpTriggerRef.current = open)} />
       <OnboardingModal open={onboarding.open} address={inbox.address} onClose={onboarding.close} />

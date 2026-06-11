@@ -16,18 +16,18 @@ export function EmptyInbox({ address }: Props) {
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 p-8 text-center">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <MailPlus className="size-4" />
+    <div className="flex h-full flex-col items-center justify-center gap-6 p-4 text-center sm:gap-8 sm:p-8">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+        <MailPlus className="size-4 shrink-0" />
         <span>Bereit — keine Mails. Adresse kopieren und irgendwo eintragen:</span>
       </div>
 
       <button
         onClick={copy}
-        className="group max-w-full break-all rounded-2xl border border-dashed border-border bg-card/40 px-6 py-8 transition-all hover:border-primary/60 hover:bg-card md:px-12 md:py-12"
+        className="group w-full max-w-full break-all rounded-2xl border border-dashed border-border bg-card/40 px-4 py-6 transition-all hover:border-primary/60 hover:bg-card sm:px-6 sm:py-8 md:px-12 md:py-12"
         aria-label="Adresse kopieren"
       >
-        <div className="select-all font-mono text-2xl font-semibold tracking-tight md:text-4xl">
+        <div className="select-all font-mono text-base font-semibold tracking-tight sm:text-2xl md:text-4xl">
           {address}
         </div>
         <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors group-hover:text-foreground">
