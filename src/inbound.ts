@@ -99,13 +99,6 @@ export default {
     const parsedAttachments = (parsed.attachments ?? []).map((a, idx) => {
       const bytes = attachmentBytes(a.content);
       const u8 = new Uint8Array(bytes);
-      const peek = Array.from(u8.subarray(0, 16))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(" ");
-      const b64 = bytesToBase64(u8);
-      console.log(
-        `att #${idx} ${a.filename} u8_len=${u8.length} peek=[${peek}] b64_len=${b64.length}`,
-      );
       return {
         idx,
         filename: a.filename ?? `attachment-${idx}`,
@@ -113,7 +106,7 @@ export default {
         contentId: (a.contentId ?? "").replace(/^<|>$/g, "") || null,
         disposition: a.disposition ?? null,
         size: bytes.byteLength,
-        contentB64: b64,
+        contentB64: bytesToBase64(u8),
       };
     });
     const attachmentsMeta = parsedAttachments.map(
