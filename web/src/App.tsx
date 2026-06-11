@@ -7,11 +7,7 @@ import { MessageDetail } from "@/components/app/MessageDetail";
 import { EmptyInbox } from "@/components/app/EmptyInbox";
 import { HelpOverlay } from "@/components/app/HelpOverlay";
 import { OnboardingModal } from "@/components/app/OnboardingModal";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { SplitPane } from "@/components/app/SplitPane";
 import { api } from "@/lib/api";
 import { randomLocal } from "@/lib/random";
 import { useInbox } from "@/hooks/useInbox";
@@ -166,12 +162,12 @@ export default function App() {
         onShowShortcuts={() => helpTriggerRef.current()}
       />
       <main className="min-h-0 flex-1">
-        <ResizablePanelGroup
-          orientation="horizontal"
-          id="tempmail.layout"
-          className="h-full"
-        >
-          <ResizablePanel defaultSize={28} minSize={18} maxSize={50}>
+        <SplitPane
+          storageKey="tempmail.sidebarPx"
+          defaultLeftPx={380}
+          minLeftPx={260}
+          maxLeftPx={640}
+          left={
             <MessageList
               address={inbox.address}
               messages={messages}
@@ -179,10 +175,9 @@ export default function App() {
               onSelect={setActiveId}
               isLoading={messagesQ.isLoading}
             />
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={72} minSize={40}>
-            {messages.length === 0 ? (
+          }
+          right={
+            messages.length === 0 ? (
               <EmptyInbox address={inbox.address} />
             ) : activeId ? (
               <MessageDetail
@@ -201,9 +196,9 @@ export default function App() {
                   drücken
                 </p>
               </div>
-            )}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            )
+          }
+        />
       </main>
       <HelpOverlay onMount={(open) => (helpTriggerRef.current = open)} />
       <OnboardingModal open={onboarding.open} address={inbox.address} onClose={onboarding.close} />

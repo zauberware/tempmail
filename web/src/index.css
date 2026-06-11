@@ -86,4 +86,11 @@
   #root {
     height: 100%;
   }
+  /* Tailwind v4 setzt button { cursor: default } per Preflight.
+     Wir wollen Pointer auf interaktiven Elementen. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
 }
