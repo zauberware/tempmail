@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
 import { AddressBar } from "@/components/app/AddressBar";
@@ -6,10 +6,17 @@ import { MessageList } from "@/components/app/MessageList";
 import { MessageDetail } from "@/components/app/MessageDetail";
 import { EmptyInbox } from "@/components/app/EmptyInbox";
 import { HelpOverlay } from "@/components/app/HelpOverlay";
+import { OnboardingModal } from "@/components/app/OnboardingModal";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { api } from "@/lib/api";
 import { randomLocal } from "@/lib/random";
 import { useInbox } from "@/hooks/useInbox";
 import { useInboxHistory } from "@/hooks/useInboxHistory";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 const POLL_MS = 5000;
 
@@ -24,6 +31,7 @@ export default function App() {
   const { inbox, setInbox } = useInbox();
   const { entries: history, remove: removeFromHistory } = useInboxHistory(inbox?.address);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const helpTriggerRef = useRef<() => void>(() => undefined);
 
   const poolQ = useQuery({
     queryKey: ["pool"],
@@ -91,6 +99,8 @@ export default function App() {
     apply(randomLocal(), d);
   };
 
+  const onboarding = useOnboarding(!!inbox && !!poolQ.data);
+
   const messages = messagesQ.data?.messages ?? [];
 
   // Keyboard shortcuts
@@ -152,35 +162,51 @@ export default function App() {
         onHistoryRemove={removeFromHistory}
         onRefresh={onRefresh}
         onClear={onClear}
+        onShowOnboarding={onboarding.reopen}
+        onShowShortcuts={() => helpTriggerRef.current()}
       />
-      <main className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[360px_1fr]">
-        <div className="min-h-0 border-b border-border md:border-b-0 md:border-r">
-          <MessageList
-            address={inbox.address}
-            messages={messages}
-            activeId={activeId}
-            onSelect={setActiveId}
-            isLoading={messagesQ.isLoading}
-          />
-        </div>
-        <div className="min-h-0 overflow-hidden">
-          {messages.length === 0 ? (
-            <EmptyInbox address={inbox.address} />
-          ) : activeId ? (
-            <MessageDetail
+      <main className="min-h-0 flex-1">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          id="tempmail.layout"
+          className="h-full"
+        >
+          <ResizablePanel defaultSize={28} minSize={18} maxSize={50}>
+            <MessageList
               address={inbox.address}
-              messageId={activeId}
-              onDeleted={() => setActiveId(null)}
+              messages={messages}
+              activeId={activeId}
+              onSelect={setActiveId}
+              isLoading={messagesQ.isLoading}
             />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-              <Mail className="size-12 opacity-30" />
-              <p className="text-sm">{messages.length} Mails — links auswählen oder <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">j</kbd> drücken</p>
-            </div>
-          )}
-        </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={72} minSize={40}>
+            {messages.length === 0 ? (
+              <EmptyInbox address={inbox.address} />
+            ) : activeId ? (
+              <MessageDetail
+                address={inbox.address}
+                messageId={activeId}
+                onDeleted={() => setActiveId(null)}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+                <Mail className="size-12 opacity-30" />
+                <p className="text-sm">
+                  {messages.length} Mails — links auswählen oder{" "}
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
+                    j
+                  </kbd>{" "}
+                  drücken
+                </p>
+              </div>
+            )}
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </main>
-      <HelpOverlay />
+      <HelpOverlay onMount={(open) => (helpTriggerRef.current = open)} />
+      <OnboardingModal open={onboarding.open} address={inbox.address} onClose={onboarding.close} />
     </div>
   );
 }

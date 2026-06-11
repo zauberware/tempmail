@@ -13,8 +13,16 @@ const SHORTCUTS: [string, string][] = [
   ["?", "Diese Hilfe ein-/ausblenden"],
 ];
 
-export function HelpOverlay() {
+interface Props {
+  onMount?: (open: () => void) => void;
+}
+
+export function HelpOverlay({ onMount }: Props = {}) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    onMount?.(() => setOpen(true));
+  }, [onMount]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

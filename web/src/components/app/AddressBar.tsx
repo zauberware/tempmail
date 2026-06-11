@@ -8,6 +8,7 @@ import {
   Trash2,
   History,
   HelpCircle,
+  Info,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ interface Props {
   onHistoryRemove: (address: string) => void;
   onRefresh: () => void;
   onClear: () => void;
+  onShowOnboarding: () => void;
+  onShowShortcuts: () => void;
 }
 
 function splitAddress(address: string): { local: string; domain: string } {
@@ -66,6 +69,8 @@ export function AddressBar({
   onHistoryRemove,
   onRefresh,
   onClear,
+  onShowOnboarding,
+  onShowShortcuts,
 }: Props) {
   const initial = splitAddress(address);
   const [local, setLocal] = useState(initial.local);
@@ -180,14 +185,9 @@ export function AddressBar({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Verlauf">
-                  <History />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Letzte Inboxes</TooltipContent>
-            </Tooltip>
+            <Button variant="outline" size="icon" aria-label="Letzte Inboxes" title="Letzte Inboxes">
+              <History />
+            </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b border-border p-3 text-xs font-semibold text-muted-foreground">
@@ -237,11 +237,19 @@ export function AddressBar({
         <ThemeToggle />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Hilfe">
+            <Button variant="ghost" size="icon" aria-label="Tastenkürzel" onClick={onShowShortcuts}>
               <HelpCircle />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Tastenkürzel anzeigen (?)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Tour" onClick={onShowOnboarding}>
+              <Info />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Tour anzeigen</TooltipContent>
         </Tooltip>
       </div>
     </header>

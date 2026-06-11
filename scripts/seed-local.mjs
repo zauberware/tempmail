@@ -7,6 +7,15 @@ import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ulid } from "ulid";
+import PostalMime from "postal-mime";
+
+function attachmentSize(content) {
+  if (!content) return 0;
+  if (typeof content === "string") return Buffer.byteLength(content, "utf8");
+  if (content instanceof ArrayBuffer) return content.byteLength;
+  if (content?.byteLength != null) return content.byteLength;
+  return 0;
+}
 
 const inbox = (process.argv[2] || "demo@temp.zauberware.org").toLowerCase();
 const [, domain] = inbox.split("@");
@@ -221,6 +230,8 @@ const sqlEsc = (v) =>
 const toHex = (buf) => "X'" + Buffer.from(buf).toString("hex").toUpperCase() + "'";
 
 const inserts = [
+  // Bereits seeded Mails dieser Inbox aufräumen, damit re-seeden idempotent ist.
+  `DELETE FROM messages WHERE inbox_address = ${sqlEsc(inbox)};`,
   `INSERT INTO inboxes (address, created_at, last_seen_at, owner_token)
    VALUES (${sqlEsc(inbox)}, ${now}, ${now}, ${sqlEsc("seed-" + ulid())})
    ON CONFLICT(address) DO UPDATE SET last_seen_at = excluded.last_seen_at;`,
@@ -230,20 +241,32 @@ for (const m of mails) {
   const id = ulid();
   const eml = m.build(inbox, m.receivedAt, m.subject);
 
-  let preview = "";
-  const textMatch = eml.match(
-    /Content-Type:\s*text\/plain[^]*?\r?\n\r?\n([^]*?)(?=\r?\n--|\r?\n$)/i,
-  );
-  if (textMatch) preview = textMatch[1].trim().slice(0, 500);
+  // Genauso parsen wie der Inbound-Worker, damit die parsed Spalten gefüllt sind.
+  const parsed = await PostalMime.parse(eml);
 
-  const hasAttachments = /Content-Disposition:\s*attachment/i.test(eml) ? 1 : 0;
+  const text = parsed.text ?? null;
+  const html = parsed.html ?? null;
+  const preview = (text ?? "").trim().slice(0, 500);
+  const attachmentsMeta = (parsed.attachments ?? []).map((a) => ({
+    filename: a.filename ?? "attachment",
+    mimeType: a.mimeType ?? "application/octet-stream",
+    size: attachmentSize(a.content),
+    contentId: a.contentId ?? null,
+    disposition: a.disposition ?? null,
+  }));
+  const hasAttachments = attachmentsMeta.length > 0 ? 1 : 0;
+  const toJson = JSON.stringify(parsed.to ?? []);
+  const ccJson = JSON.stringify(parsed.cc ?? []);
+  const headersJson = JSON.stringify(parsed.headers ?? []);
+  const attachmentsMetaJson = JSON.stringify(attachmentsMeta);
   const size = Buffer.byteLength(eml, "utf8");
   const rawHex = toHex(Buffer.from(eml, "utf8"));
 
   inserts.push(
-    `INSERT INTO messages (id, inbox_address, from_addr, from_name, subject, received_at, size_bytes, has_attachments, raw_eml, text_preview)
+    `INSERT INTO messages (id, inbox_address, from_addr, from_name, subject, received_at, size_bytes, has_attachments, raw_eml, text_preview, text_body, html_body, to_json, cc_json, headers_json, attachments_meta_json)
      VALUES (${sqlEsc(id)}, ${sqlEsc(inbox)}, ${sqlEsc(m.fromAddr)}, ${sqlEsc(m.fromName)}, ${sqlEsc(m.subject)},
-             ${m.receivedAt}, ${size}, ${hasAttachments}, ${rawHex}, ${sqlEsc(preview)});`,
+             ${m.receivedAt}, ${size}, ${hasAttachments}, ${rawHex}, ${sqlEsc(preview)},
+             ${sqlEsc(text)}, ${sqlEsc(html)}, ${sqlEsc(toJson)}, ${sqlEsc(ccJson)}, ${sqlEsc(headersJson)}, ${sqlEsc(attachmentsMetaJson)});`,
   );
 }
 

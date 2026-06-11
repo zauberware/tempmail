@@ -15,15 +15,16 @@ interface Props {
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay
-    ? d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleString(undefined, {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (sameDay) return time;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const date = sameYear
+    ? `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`
+    : `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear() % 100}`;
+  return date;
 }
 
 function ListSkeleton() {
@@ -82,27 +83,29 @@ export function MessageList({ address, messages, activeId, onSelect, isLoading }
                 )}
               >
                 <Avatar name={m.from_name} email={m.from} />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-sm font-semibold">
+                <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+                  <div className="flex min-w-0 items-baseline justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                       {m.from_name || m.from || "(unknown)"}
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                       {fmtTime(m.received_at)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex min-w-0 items-center gap-1">
                     {m.has_attachments && (
                       <Paperclip className="size-3 shrink-0 text-muted-foreground" />
                     )}
-                    <span className="truncate text-sm">
+                    <span className="min-w-0 flex-1 truncate text-sm">
                       {m.subject || (
                         <span className="italic text-muted-foreground">(no subject)</span>
                       )}
                     </span>
                   </div>
                   {m.preview && (
-                    <p className="line-clamp-1 text-xs text-muted-foreground">{m.preview}</p>
+                    <p className="line-clamp-1 min-w-0 text-xs text-muted-foreground">
+                      {m.preview}
+                    </p>
                   )}
                 </div>
               </button>
