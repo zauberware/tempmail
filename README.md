@@ -1,261 +1,236 @@
 # tempmail
 
-Self-hosted Wegwerf-Mail-Service auf Cloudflare. Web-UI wie temp-mail.org, REST-API
-für Tests und KI-Agents, Multi-Domain-Pool. Null laufende Service-Kosten (alles im
-Cloudflare Free Tier).
+Self-hosted disposable email service on Cloudflare. Web UI in the spirit of
+temp-mail.org, REST API for tests and AI agents, multi-domain pool. Runs on
+the Cloudflare free tier — no recurring service cost beyond what you already
+pay for a domain.
 
-## Architektur
+Live deployment example: [temp.zauberware.org](https://temp.zauberware.org).
 
-- **Inbound Worker** (`src/inbound.ts`) — Email-Trigger, parst eingehende Mails,
-  persistiert Metadaten in D1 und rohe `.eml` in R2.
-- **Web Worker** (`src/web.ts`) — Hono-App mit REST-API. Bei nicht-API-Routen
-  fällt der Worker an die statischen Assets (React-UI) zurück. Basic Auth gilt
-  für **alle** Requests (auch HTML/JS). Stündlicher Cron räumt alte Mails
-  (>7 Tage) und tote Inboxes (>30 Tage) auf.
-- **Web-UI** (`web/`) — Vite + React 19 + Tailwind v4 + shadcn/ui + TanStack Query.
-  Wird per `npm run ui:build` nach `web/dist/` gebaut und über Wrangler's
-  `[assets]`-Binding (mit `run_worker_first = true`) ausgeliefert.
-- **D1** — Metadaten (`inboxes`, `messages`).
-- **R2** — rohe RFC822-Nachrichten und Anhänge.
+## What's in the box
 
-## Voraussetzungen
+- **Inbound Worker** (`src/inbound.ts`) — triggered by Cloudflare Email Routing
+  on every incoming mail. Parses the message with [`postal-mime`][postal-mime]
+  and writes both the parsed fields and the raw `.eml` (as a BLOB) into D1.
+  Rejects domains that aren't in the configured pool.
+- **Web Worker** (`src/web.ts`) — Hono app with a JSON REST API. Non-API
+  requests fall through to the static SPA via Cloudflare's `[assets]` binding.
+  Basic Auth protects **everything** (HTML, JS, API). A scheduled handler runs
+  hourly and deletes messages older than 7 days and inboxes idle for 30+ days.
+- **Web UI** (`web/`) — Vite + React 19 + Tailwind v4 + shadcn/ui + TanStack
+  Query. Built to `web/dist/` and served by the web worker.
+- **D1** — one database, two tables: `inboxes` and `messages`. Raw `.eml` lives
+  in a BLOB column (capped at ~950 KB per row).
 
-- Cloudflare-Account
-- 1+ Domain in Cloudflare gehostet (NS-Records auf CF). Subdomains gehen auch.
-- Node.js ≥ 20, npm
+[postal-mime]: https://github.com/postalsys/postal-mime
 
-## Setup
+## UI features
 
-```bash
-npm install            # Worker-Deps (Hono, postal-mime, ulid)
-npm run ui:install     # Web-UI-Deps (React, Vite, Tailwind, shadcn)
-npx wrangler login
-```
+- Empty-state hero on first load: the address front-and-center with a
+  single-click copy. The first useful action a user actually wants to take.
+- Inbox history in localStorage (last 10) reachable from a popover in the
+  header — addresses outlive the current tab session.
+- Sender avatars (hash-color initials).
+- Live HTML rendering: `cid:` inline images resolve through the API, external
+  resources are stripped by default with a per-message toggle to load them.
+- Light / dark / system theme toggle with no flash on load.
+- Resizable sidebar (drag the divider; width persists per browser).
+- Keyboard shortcuts: `j` / `k` navigate, `r` refresh, `c` copy address, `n`
+  new random inbox, `Shift+E` empty inbox, `?` shortcut help.
+- Onboarding modal on first visit, reopenable via the ⓘ icon in the topbar.
+- Skeleton loaders, manual refresh, "empty inbox" bulk delete.
 
-### 1) D1 anlegen
+## REST API
 
-```bash
-npx wrangler d1 create tempmail
-```
+All endpoints require Basic Auth.
 
-Die ausgegebene `database_id` in **beide** wrangler-Files eintragen:
-- `wrangler.toml`
-- `wrangler.inbound.toml`
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/pool` | List of configured pool domains |
+| `POST` | `/api/inboxes` | Create/touch an inbox (body: `{local?, domain?}`) |
+| `GET` | `/api/inboxes/:address/messages` | List messages |
+| `GET` | `/api/inboxes/:address/messages/:id` | Parsed message detail |
+| `GET` | `/api/inboxes/:address/messages/:id/raw` | Raw `.eml` |
+| `GET` | `/api/inboxes/:address/messages/:id/attachments/:filename` | Attachment download |
+| `GET` | `/api/inboxes/:address/messages/:id/cid/:cid` | Inline image by Content-ID |
+| `DELETE` | `/api/inboxes/:address/messages/:id` | Delete one message |
+| `DELETE` | `/api/inboxes/:address/messages` | Empty inbox |
 
-Schema migrieren:
-
-```bash
-npx wrangler d1 migrations apply tempmail --remote
-```
-
-### 2) R2-Bucket anlegen
-
-```bash
-npx wrangler r2 bucket create tempmail-eml
-```
-
-### 3) Pool-Domains konfigurieren
-
-In beiden `wrangler*.toml` die `POOL_DOMAINS` Variable setzen, z.B.:
-
-```toml
-POOL_DOMAINS = "tmp.zauberware.com,mail.example.dev,kurz.email"
-```
-
-### 4) Basic-Auth-Secrets setzen
+Example — an agent waiting for a verification mail:
 
 ```bash
-npx wrangler secret put BASIC_AUTH_USER
-npx wrangler secret put BASIC_AUTH_PASS
-```
-
-(Beide Worker brauchen die Secrets — der Inbound-Worker für nichts, der Web-Worker für die UI/API.
-Wir setzen sie der Einfachheit halber auf beide.)
-
-```bash
-npx wrangler secret put BASIC_AUTH_USER --config wrangler.inbound.toml
-npx wrangler secret put BASIC_AUTH_PASS --config wrangler.inbound.toml
-```
-
-### 5) Deploy
-
-```bash
-npm run deploy
-```
-
-→ `tempmail-web` und `tempmail-inbound` werden deployed.
-
-### 6) Email Routing pro Pool-Domain aktivieren
-
-Im Cloudflare-Dashboard pro Domain:
-
-1. **Email → Email Routing → Enable**. MX-Records werden auto-injiziert.
-2. **Routing Rules → Catch-all address → Send to a Worker → `tempmail-inbound`**.
-3. Speichern.
-
-Für Subdomains (`tmp.zauberware.com`):
-- Email Routing aktivieren — CF setzt MX-Records auf der Subdomain. Die Haupt-MX-Records
-  (z.B. für O365) auf `zauberware.com` bleiben unberührt.
-
-### 7) (Optional) Custom Domain fürs Frontend
-
-In `wrangler.toml` den `[[routes]]`-Block einkommentieren:
-
-```toml
-[[routes]]
-pattern = "tempmail.zauberware.com/*"
-zone_name = "zauberware.com"
-```
-
-Dann nochmal `npm run deploy:web`.
-
-## Auto-Deploy via GitHub Actions
-
-Push auf `main` deployt automatisch beide Worker und wendet D1-Migrations remote an.
-Workflow: `.github/workflows/deploy.yml`. Push/PR triggern zusätzlich `ci.yml`
-(Lint + Typecheck + Build).
-
-Benötigte GitHub-Secrets (Repo → Settings → Secrets and variables → Actions):
-
-| Secret | Wert |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | API-Token mit `Account:Workers Scripts:Edit`, `Account:D1:Edit`, `Account:Account Settings:Read`, `User:User Details:Read` |
-| `CLOUDFLARE_ACCOUNT_ID` | aus CF-Dashboard rechts in der Sidebar |
-
-Token-Erstellung: My Profile → API Tokens → Create Token → "Edit Cloudflare Workers"
-Template oder Custom Token mit obigen Permissions. Account-Scope auf den
-entsprechenden Account einschränken.
-
-> **Hinweis:** Basic-Auth-Secrets (`BASIC_AUTH_USER`/`BASIC_AUTH_PASS`) werden
-> **nicht** vom Workflow gesetzt. Einmalig manuell per `wrangler secret put` in beiden
-> Worker-Konfigurationen ablegen (siehe Setup-Schritt 4).
-
-## Code-Qualität
-
-```bash
-npm run lint        # ESLint + Prettier --check
-npm run format      # Prettier --write
-npm run typecheck   # tsc (worker + web)
-```
-
-Pre-Push lokal: `npm run lint && npm run typecheck`. Im CI laufen die gleichen Checks.
-
-## Lokal entwickeln
-
-```bash
-cp .dev.vars.example .dev.vars
-npm run db:migrate:local
-```
-
-**Zwei Modi:**
-
-1. **Worker + UI gebaut** (Production-ähnlich, statische Assets):
-   ```bash
-   npm run dev         # baut UI einmal, dann wrangler dev auf :8787
-   ```
-
-2. **Hot-Reload-UI** (Vite Dev-Server proxied an Worker):
-   ```bash
-   # Terminal 1
-   npx wrangler dev    # Worker auf :8787 (API)
-   # Terminal 2
-   npm run ui:dev      # Vite auf :5173, /api/* wird gegen :8787 geproxied
-   ```
-
-Für Inbound-Tests:
-```bash
-npm run dev:inbound  # email worker (für lokale .eml-Tests)
-```
-
-Lokal Mail simulieren:
-
-```bash
-npx wrangler email send-local --from sender@example.com --to test@tmp.zauberware.com \
-  --message-content-file ./sample.eml
-```
-
-## REST-API
-
-Alle Endpoints erfordern Basic Auth.
-
-| Methode | Pfad | Body | Zweck |
-|---|---|---|---|
-| GET | `/api/pool` | — | Pool-Domains |
-| POST | `/api/inboxes` | `{ local?, domain? }` | Inbox anlegen (Random wenn leer) |
-| GET | `/api/inboxes/:address/messages?limit&offset` | — | Mail-Liste |
-| GET | `/api/inboxes/:address/messages/:id` | — | Parsed-Detail (text/html/attachments) |
-| GET | `/api/inboxes/:address/messages/:id/raw` | — | rohe `.eml` |
-| GET | `/api/inboxes/:address/messages/:id/attachments/:name` | — | Anhang |
-| DELETE | `/api/inboxes/:address/messages/:id` | — | Löschen |
-
-### Beispiel: KI-Agent wartet auf Bestätigungsmail
-
-```bash
-INBOX=$(curl -s -u $USER:$PASS https://tempmail.example.com/api/inboxes \
+INBOX=$(curl -su $USER:$PASS https://tempmail.example.com/api/inboxes \
   -H 'content-type: application/json' \
-  -d '{"local":"signup-test-1","domain":"tmp.zauberware.com"}' | jq -r .address)
+  -d '{"local":"signup-test-1","domain":"nosu.tmp.example.com"}' | jq -r .address)
 
-# ... bei einem SaaS-Signup $INBOX angeben ...
+# trigger the signup using $INBOX as the address …
 
 while :; do
-  N=$(curl -s -u $USER:$PASS \
-    "https://tempmail.example.com/api/inboxes/$INBOX/messages" | jq '.messages | length')
+  N=$(curl -su $USER:$PASS \
+    "https://tempmail.example.com/api/inboxes/$INBOX/messages" \
+    | jq '.messages | length')
   [ "$N" -gt 0 ] && break
   sleep 3
 done
 ```
 
-## Aufräumen
+## Prerequisites
 
-Cron läuft stündlich (`0 * * * *`). Defaults in `src/web.ts`:
-- Messages > **7 Tage** alt → gelöscht (D1 + R2)
-- Inboxes > **30 Tage** inaktiv und leer → gelöscht
+- Cloudflare account with a zone you don't use for production mail (the zone's
+  apex MX records get pointed at Cloudflare Email Routing — see notes below).
+- Node.js ≥ 20 and npm.
+- For the auto-deploy on push: a GitHub repo and one Cloudflare API token
+  stored as a repo secret.
 
-## Claude-Code-Skill (für KI-Agents im Team)
-
-Im Repo liegt unter `.claude/skills/tempmail/SKILL.md` eine Claude-Code-Skill,
-die einem Agent erklärt wie er die tempmail-API benutzt (Inbox anlegen,
-Polling, Confirmation-Codes extrahieren). Sobald die Skill in `~/.claude/skills/`
-liegt, lädt sie sich automatisch wenn der Agent z.B. einen Signup-Flow testen
-oder eine Magic-Mail abfangen soll.
-
-### Einmaliges Setup pro Team-Mitglied
+## First-time setup
 
 ```bash
-# Repo klonen (falls noch nicht geschehen)
-git clone git@github.com:zauberware/tempmail.git ~/code/tempmail
-
-# Skill verfügbar machen (Symlink → updated sich mit `git pull`)
-ln -s ~/code/tempmail/.claude/skills/tempmail ~/.claude/skills/tempmail
-
-# Credentials in ~/.zshrc setzen (Werte aus 1Password "tempmail admin")
-export TEMPMAIL_USER='admin'
-export TEMPMAIL_PASS='...'
+npm install            # worker deps (Hono, postal-mime, ulid)
+npm run ui:install     # web UI deps (React, Vite, Tailwind, shadcn)
+npx wrangler login
 ```
 
-Danach `source ~/.zshrc` (oder neues Terminal). Im nächsten Claude-Code-Run
-zeigt `/skills` (oder die System-Skill-Liste) `tempmail` als verfügbar.
+### 1. Create D1
 
-Optional: Pointer in der globalen `~/.claude/CLAUDE.md`, damit der Agent
-auch dann von der Skill weiß, wenn er gerade keinen Trigger-Match hat:
-
-```markdown
-## Wegwerf-Mails für Tests/Signups
-Wenn du eine temporäre E-Mail-Adresse brauchst (Signup-Flows testen,
-Confirmation-Codes oder Magic-Links abfangen), lade die `tempmail`-Skill.
-Self-hosted Service auf temp.zauberware.org.
+```bash
+npx wrangler d1 create tempmail
 ```
 
-### Skill aktualisieren / erweitern
+Paste the returned `database_id` into **both** `wrangler.toml` and
+`wrangler.inbound.toml`. Apply migrations:
 
-Ist eine normale Datei im Repo — PR auf `.claude/skills/tempmail/SKILL.md`,
-Review, Merge. Alle Team-Mitglieder mit Symlink kriegen die neue Version
-beim nächsten `git pull`.
+```bash
+npx wrangler d1 migrations apply tempmail --remote
+```
 
-## Migration auf VPS (später)
+### 2. Configure pool domains
 
-Wenn ihr public werdet oder Cloudflare-AUP-Risiko vermeiden wollt:
-1. VPS mit Haraka oder Postal als SMTP-Receiver.
-2. Hono-Routes laufen auch in Node (gleiche `src/web.ts`).
-3. D1-Dump → Postgres-Import. R2 bleibt (S3-API) oder rsync auf Volume.
-4. MX-Records pro Domain von CF Email Routing auf VPS umstellen.
+In both `wrangler.toml` and `wrangler.inbound.toml`:
+
+```toml
+POOL_DOMAINS = "nosu.tmp.example.com,kuno.tmp.example.com,…"
+```
+
+Anything not in this list is rejected by the inbound worker.
+
+### 3. Basic-Auth credentials
+
+Set on both workers (the UI auth lives on the web worker, but having the same
+on the inbound worker keeps the deploy step consistent):
+
+```bash
+npx wrangler secret put BASIC_AUTH_USER
+npx wrangler secret put BASIC_AUTH_PASS
+npx wrangler secret put BASIC_AUTH_USER --config wrangler.inbound.toml
+npx wrangler secret put BASIC_AUTH_PASS --config wrangler.inbound.toml
+```
+
+### 4. Deploy
+
+```bash
+npm run deploy
+```
+
+This builds the UI, deploys the web worker (custom domain wired from the
+`[[routes]]` block in `wrangler.toml`), and deploys the inbound worker.
+
+### 5. Set up Cloudflare Email Routing
+
+This is the part that catches people. Done once per zone, in the Cloudflare
+dashboard:
+
+1. Zone → **Email** → **Email Routing** → **Enable**. Confirm the MX/SPF/DKIM
+   records on the zone apex (this overrides whatever mail provider was there
+   before).
+2. **Routing rules** → **Catch-all** → **Send to a Worker** → `tempmail-inbound`.
+3. For each pool subdomain (`nosu.tmp.example.com`, …) add an MX record
+   pointing at `route1.mx.cloudflare.net` (priority 72), `route2…` (15) and
+   `route3…` (42). All three are needed.
+
+The inbound worker filters by `POOL_DOMAINS`, so anything else delivered to the
+zone catch-all gets a 550 bounce instead of polluting the inbox.
+
+Alternatively, all of the above can be scripted via the CF API once you have a
+token with **Zone → Email Routing → Edit** and **DNS → Edit** permissions.
+
+### 6. (Optional) Workers.dev subdomain
+
+If this account has never used Workers before, open
+**Workers & Pages** in the dashboard once. Cloudflare requires an account-wide
+`*.workers.dev` subdomain to exist before it lets you attach cron triggers.
+
+## Continuous deployment (GitHub Actions)
+
+`.github/workflows/deploy.yml` is included. To use it:
+
+1. Create a Cloudflare API token with these permissions:
+   - Account → **Workers Scripts**: Edit
+   - Account → **D1**: Edit
+   - Account → **Workers Subdomain**: Read
+   - Zone → **Workers Routes**: Edit
+   - Zone → **DNS**: Edit
+   - User → **User Details**: Read
+2. Add it to the GitHub repo as a secret named `CLOUDFLARE_API_TOKEN`.
+3. Also add `CLOUDFLARE_ACCOUNT_ID`.
+
+Every push to `main` then runs `tsc --noEmit`, builds the UI, applies pending
+D1 migrations, and deploys both workers.
+
+## Local development
+
+```bash
+cp .dev.vars.example .dev.vars      # then edit BASIC_AUTH_USER / BASIC_AUTH_PASS
+npm run db:migrate:local
+```
+
+Two modes:
+
+- **Static UI** (closest to production):
+  ```bash
+  npm run dev      # builds UI once, then wrangler dev on :8787
+  ```
+
+- **Hot-reload UI** (Vite dev server proxying `/api/*` to the worker):
+  ```bash
+  # terminal 1
+  npx wrangler dev
+  # terminal 2
+  npm run ui:dev   # vite on :5173 with API proxy
+  ```
+
+### Seed test mails
+
+```bash
+npm run seed -- demo@nosu.tmp.example.com
+```
+
+Inserts five canned messages (HTML, plain text, an attachment, a remote-image
+newsletter) into the local D1 so you can click around without sending real
+mail. The seed populates the same parsed columns the inbound worker writes,
+so the UI behaves identically to production.
+
+`POOL_DOMAINS` can be overridden locally via `.dev.vars` — useful if you want
+the seeded inbox to show up in the address dropdown without touching the
+production list.
+
+## Architecture notes
+
+- **Why D1-BLOB and not R2 for raw `.eml`?** R2 requires a payment method on
+  the Cloudflare account before it can be enabled, even on the free tier. D1's
+  ~1 MB row limit covers the overwhelming majority of real mail and we cap at
+  950 KB to leave room for metadata. R2 is a simple swap if you ever need it.
+
+- **Why a zone catch-all instead of per-subdomain Email Routing?** Cloudflare
+  doesn't expose per-subdomain routing via API tokens, only via the dashboard
+  UI. Putting one zone-wide catch-all on the inbound worker and letting the
+  worker filter by `POOL_DOMAINS` is one API call instead of N manual ones,
+  and the worker's reject path generates the same 550 bounce a missing
+  subdomain would.
+
+- **Why no R2-style pre-signed URLs for attachments?** The attachments are
+  small enough to stream through the worker, Basic Auth protects them
+  consistently, and there's no public-attachment use case we wanted to support.
+
+## License
+
+MIT.
