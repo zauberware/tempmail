@@ -116,7 +116,9 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
               <ArrowLeft />
             </Button>
             <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
-              {msg.subject || <span className="italic text-muted-foreground">{t("no_subject")}</span>}
+              {msg.subject || (
+                <span className="italic text-muted-foreground">{t("no_subject")}</span>
+              )}
             </h1>
             <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
               <PopoverTrigger asChild>
@@ -165,7 +167,9 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
             <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-lg font-semibold">
-                {msg.subject || <span className="italic text-muted-foreground">{t("no_subject")}</span>}
+                {msg.subject || (
+                  <span className="italic text-muted-foreground">{t("no_subject")}</span>
+                )}
               </h1>
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt className="text-muted-foreground">{t("from_label")}</dt>

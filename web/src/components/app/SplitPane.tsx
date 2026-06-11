@@ -10,14 +10,7 @@ interface Props {
   right: React.ReactNode;
 }
 
-export function SplitPane({
-  storageKey,
-  defaultLeftPx,
-  minLeftPx,
-  maxLeftPx,
-  left,
-  right,
-}: Props) {
+export function SplitPane({ storageKey, defaultLeftPx, minLeftPx, maxLeftPx, left, right }: Props) {
   const [width, setWidth] = useState<number>(() => {
     try {
       const v = localStorage.getItem(storageKey);

@@ -27,7 +27,9 @@ export function DropdownItem({
       )}
       {...props}
     >
-      {icon ? <span className="inline-flex size-4 shrink-0 items-center justify-center">{icon}</span> : null}
+      {icon ? (
+        <span className="inline-flex size-4 shrink-0 items-center justify-center">{icon}</span>
+      ) : null}
       <span className="flex-1">{children}</span>
     </button>
   );
@@ -37,4 +39,8 @@ export function DropdownSeparator() {
   return <div className="my-1 h-px bg-border" />;
 }
 
-export { Popover as DropdownRoot, PopoverTrigger as DropdownTrigger, PopoverContent as DropdownContent };
+export {
+  Popover as DropdownRoot,
+  PopoverTrigger as DropdownTrigger,
+  PopoverContent as DropdownContent,
+};

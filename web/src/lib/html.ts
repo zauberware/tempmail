@@ -1,6 +1,7 @@
 import type { AttachmentMeta } from "./types";
 
-const REMOTE_SRC_RE = /(<(?:img|link|script|iframe|video|audio|source)[^>]+?)(?:(src|href|srcset)=["']https?:\/\/[^"']*["'])/gi;
+const REMOTE_SRC_RE =
+  /(<(?:img|link|script|iframe|video|audio|source)[^>]+?)(?:(src|href|srcset)=["']https?:\/\/[^"']*["'])/gi;
 const REMOTE_BG_RE = /url\(\s*["']?https?:\/\/[^"')]+["']?\s*\)/gi;
 
 /**
@@ -24,9 +25,7 @@ export function rewriteCids(
 ): string {
   if (!attachments.length) return html;
   const knownCids = new Set(
-    attachments
-      .map((a) => (a.contentId || "").replace(/^<|>$/g, ""))
-      .filter(Boolean),
+    attachments.map((a) => (a.contentId || "").replace(/^<|>$/g, "")).filter(Boolean),
   );
   return html.replace(/cid:([^"'\s>)]+)/gi, (match, raw: string) => {
     const cid = raw.replace(/^<|>$/g, "");

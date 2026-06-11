@@ -12,8 +12,7 @@ export function Avatar({ name, email, size = "sm", className }: Props) {
   const seed = (email || name || "?").toLowerCase();
   const color = avatarColor(seed);
   const ini = initials(name, email);
-  const sizeCls =
-    size === "md" ? "size-10 text-sm" : "size-9 text-xs";
+  const sizeCls = size === "md" ? "size-10 text-sm" : "size-9 text-xs";
   return (
     <div
       className={cn(

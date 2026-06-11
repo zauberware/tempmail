@@ -27,11 +27,17 @@ export function avatarColor(seed: string): string {
   return PALETTE[hash(seed) % PALETTE.length]!;
 }
 
-export function initials(name: string | null | undefined, email: string | null | undefined): string {
+export function initials(
+  name: string | null | undefined,
+  email: string | null | undefined,
+): string {
   const base = (name || email || "?").trim();
   if (!base) return "?";
   // Try first letters of two words
-  const words = base.replace(/[<>()]/g, "").split(/[\s.@_-]+/).filter(Boolean);
+  const words = base
+    .replace(/[<>()]/g, "")
+    .split(/[\s.@_-]+/)
+    .filter(Boolean);
   if (words.length >= 2) {
     return (words[0]![0]! + words[1]![0]!).toUpperCase();
   }

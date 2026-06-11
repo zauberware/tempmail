@@ -202,7 +202,11 @@ export default function App() {
       />
       <main className="min-h-0 flex-1">
         {isMobile ? (
-          activeId || messages.length === 0 ? rightPane : list
+          activeId || messages.length === 0 ? (
+            rightPane
+          ) : (
+            list
+          )
         ) : (
           <SplitPane
             storageKey="tempmail.sidebarPx"
