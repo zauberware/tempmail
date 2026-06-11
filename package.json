@@ -1,0 +1,40 @@
+{
+  "name": "tempmail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ui:install": "npm --prefix web install",
+    "ui:dev": "npm --prefix web run dev",
+    "ui:build": "npm --prefix web run build",
+    "ui:typecheck": "npm --prefix web run typecheck",
+    "dev": "npm run ui:build && wrangler dev",
+    "dev:inbound": "wrangler dev --config wrangler.inbound.toml",
+    "build": "npm run ui:build",
+    "deploy": "npm run ui:build && wrangler deploy && wrangler deploy --config wrangler.inbound.toml",
+    "deploy:web": "npm run ui:build && wrangler deploy",
+    "deploy:inbound": "wrangler deploy --config wrangler.inbound.toml",
+    "seed": "node scripts/seed-local.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply tempmail --local",
+    "db:migrate:remote": "wrangler d1 migrations apply tempmail --remote",
+    "tail:inbound": "wrangler tail --config wrangler.inbound.toml",
+    "tail:web": "wrangler tail",
+    "typecheck": "tsc --noEmit && npm run ui:typecheck",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "postal-mime": "^2.4.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.20.0",
+    "wrangler": "^4.0.0"
+  }
+}

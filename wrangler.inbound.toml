@@ -1,0 +1,18 @@
+# Inbound Email Worker — getrennter Worker, weil Email-Trigger separates Deployment-Target.
+name = "tempmail-inbound"
+main = "src/inbound.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[vars]
+POOL_DOMAINS = "nosu.temp.zauberware.org,kuno.temp.zauberware.org,yuzo.temp.zauberware.org,tuyu.temp.zauberware.org,niri.temp.zauberware.org,kuri.temp.zauberware.org,kakoya.temp.zauberware.org,lakusu.temp.zauberware.org,situ.temp.zauberware.org,foza.temp.zauberware.org"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tempmail"
+database_id = "dffa33a7-26dd-4e7d-85bd-03a652d24b19"
+migrations_dir = "migrations"
+
+# In Cloudflare Dashboard pro Pool-Domain:
+#   Email -> Email Routing -> Catch-all -> Send to a Worker: tempmail-inbound

@@ -1,0 +1,27 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Build output
+dist/
+web/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# Test/coverage
+coverage/
+.nyc_output/
+
+# Wrangler local state
+.mf/
