@@ -5,8 +5,6 @@ temp-mail.org, REST API for tests and AI agents, multi-domain pool. Runs on
 the Cloudflare free tier — no recurring service cost beyond what you already
 pay for a domain.
 
-Live deployment example: [tempus.zauberware.org](https://tempus.zauberware.org).
-
 ## What's in the box
 
 - **Inbound Worker** (`src/inbound.ts`) — triggered by Cloudflare Email Routing
