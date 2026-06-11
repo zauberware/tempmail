@@ -6,6 +6,13 @@ import { randomToken } from "./lib/random";
 
 const MAX_EML_BYTES = 950 * 1024; // D1 Row-Limit ~1MB, Sicherheitsmarge
 
+function attachmentSize(content: string | ArrayBuffer | Uint8Array | undefined): number {
+  if (!content) return 0;
+  if (typeof content === "string") return new TextEncoder().encode(content).byteLength;
+  if (content instanceof ArrayBuffer) return content.byteLength;
+  return content.byteLength;
+}
+
 async function readableToBuffer(stream: ReadableStream<Uint8Array>): Promise<ArrayBuffer> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -52,8 +59,21 @@ export default {
     const fromAddr = parsed.from?.address ?? message.from;
     const fromName = parsed.from?.name ?? null;
     const subject = parsed.subject ?? null;
-    const preview = (parsed.text ?? "").trim().slice(0, 500);
-    const hasAttachments = (parsed.attachments?.length ?? 0) > 0 ? 1 : 0;
+    const text = parsed.text ?? null;
+    const html = parsed.html ?? null;
+    const preview = (text ?? "").trim().slice(0, 500);
+    const attachmentsMeta = (parsed.attachments ?? []).map((a) => ({
+      filename: a.filename ?? "attachment",
+      mimeType: a.mimeType ?? "application/octet-stream",
+      size: attachmentSize(a.content),
+      contentId: a.contentId ?? null,
+      disposition: a.disposition ?? null,
+    }));
+    const hasAttachments = attachmentsMeta.length > 0 ? 1 : 0;
+    const toJson = JSON.stringify(parsed.to ?? []);
+    const ccJson = JSON.stringify(parsed.cc ?? []);
+    const headersJson = JSON.stringify(parsed.headers ?? []);
+    const attachmentsMetaJson = JSON.stringify(attachmentsMeta);
 
     await env.DB.batch([
       env.DB.prepare(
@@ -64,9 +84,27 @@ export default {
       env.DB.prepare(
         `INSERT INTO messages
            (id, inbox_address, from_addr, from_name, subject,
-            received_at, size_bytes, has_attachments, raw_eml, text_preview)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(id, to, fromAddr, fromName, subject, now, originalSize, hasAttachments, raw, preview),
+            received_at, size_bytes, has_attachments, raw_eml, text_preview,
+            text_body, html_body, to_json, cc_json, headers_json, attachments_meta_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        id,
+        to,
+        fromAddr,
+        fromName,
+        subject,
+        now,
+        originalSize,
+        hasAttachments,
+        raw,
+        preview,
+        text,
+        html,
+        toJson,
+        ccJson,
+        headersJson,
+        attachmentsMetaJson,
+      ),
     ]);
   },
 } satisfies ExportedHandler<Env>;

@@ -23,6 +23,15 @@ export interface MessageRowWithRaw extends MessageRow {
   raw_eml: ArrayBuffer;
 }
 
+export interface MessageDetailRow extends MessageRow {
+  text_body: string | null;
+  html_body: string | null;
+  to_json: string | null;
+  cc_json: string | null;
+  headers_json: string | null;
+  attachments_meta_json: string | null;
+}
+
 export async function getInbox(env: Env, address: string): Promise<InboxRow | null> {
   return await env.DB.prepare(
     `SELECT address, created_at, last_seen_at, owner_token
@@ -96,6 +105,22 @@ export async function getMessageWithRaw(
   )
     .bind(address.toLowerCase(), id)
     .first<MessageRowWithRaw>();
+}
+
+export async function getMessageDetail(
+  env: Env,
+  address: string,
+  id: string,
+): Promise<MessageDetailRow | null> {
+  return await env.DB.prepare(
+    `SELECT id, inbox_address, from_addr, from_name, subject,
+            received_at, size_bytes, has_attachments, text_preview,
+            text_body, html_body, to_json, cc_json, headers_json, attachments_meta_json
+     FROM messages
+     WHERE inbox_address = ? AND id = ?`,
+  )
+    .bind(address.toLowerCase(), id)
+    .first<MessageDetailRow>();
 }
 
 export async function deleteMessage(env: Env, address: string, id: string): Promise<boolean> {

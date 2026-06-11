@@ -7,6 +7,7 @@ import { randomSlug, randomToken } from "./lib/random";
 import {
   deleteMessage,
   getInbox,
+  getMessageDetail,
   getMessageWithRaw,
   listMessages,
   touchInbox,
@@ -71,13 +72,6 @@ app.get("/api/inboxes/:address/messages", async (c) => {
   });
 });
 
-function attachmentSize(content: string | ArrayBuffer | Uint8Array | undefined): number {
-  if (!content) return 0;
-  if (typeof content === "string") return new TextEncoder().encode(content).byteLength;
-  if (content instanceof ArrayBuffer) return content.byteLength;
-  return content.byteLength;
-}
-
 function attachmentBytes(content: string | ArrayBuffer | Uint8Array | undefined): ArrayBuffer {
   if (!content) return new ArrayBuffer(0);
   if (typeof content === "string") {
@@ -91,30 +85,35 @@ function attachmentBytes(content: string | ArrayBuffer | Uint8Array | undefined)
   ) as ArrayBuffer;
 }
 
+function safeJsonParse<T>(input: string | null, fallback: T): T {
+  if (!input) return fallback;
+  try {
+    return JSON.parse(input) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 app.get("/api/inboxes/:address/messages/:id", async (c) => {
   const address = c.req.param("address").toLowerCase();
   const id = c.req.param("id");
-  const row = await getMessageWithRaw(c.env, address, id);
+  const row = await getMessageDetail(c.env, address, id);
   if (!row) return c.json({ error: "not_found" }, 404);
-  const parsed = await PostalMime.parse(row.raw_eml);
+
+  const fromObj = row.from_addr ? { address: row.from_addr, name: row.from_name } : null;
+
   return c.json({
     id: row.id,
-    from: parsed.from ?? null,
-    to: parsed.to ?? [],
-    cc: parsed.cc ?? [],
-    subject: parsed.subject ?? null,
+    from: fromObj,
+    to: safeJsonParse<unknown[]>(row.to_json, []),
+    cc: safeJsonParse<unknown[]>(row.cc_json, []),
+    subject: row.subject,
     received_at: row.received_at,
     size_bytes: row.size_bytes,
-    text: parsed.text ?? null,
-    html: parsed.html ?? null,
-    headers: parsed.headers ?? [],
-    attachments: (parsed.attachments ?? []).map((a) => ({
-      filename: a.filename,
-      mimeType: a.mimeType,
-      size: attachmentSize(a.content),
-      contentId: a.contentId,
-      disposition: a.disposition,
-    })),
+    text: row.text_body,
+    html: row.html_body,
+    headers: safeJsonParse<unknown[]>(row.headers_json, []),
+    attachments: safeJsonParse<unknown[]>(row.attachments_meta_json, []),
   });
 });
 
