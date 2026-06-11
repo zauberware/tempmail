@@ -5,6 +5,8 @@ temp-mail.org, REST API for tests and AI agents, multi-domain pool. Runs on
 the Cloudflare free tier — no recurring service cost beyond what you already
 pay for a domain.
 
+![Inbox view](docs/screenshots/01-inbox-dark.png)
+
 ## What's in the box
 
 - **Inbound Worker** (`src/inbound.ts`) — triggered by Cloudflare Email Routing
@@ -37,6 +39,23 @@ pay for a domain.
   new random inbox, `Shift+E` empty inbox, `?` shortcut help.
 - Onboarding modal on first visit, reopenable via the ⓘ icon in the topbar.
 - Skeleton loaders, manual refresh, "empty inbox" bulk delete.
+
+### Message detail
+
+`postal-mime` parses inbound mail into HTML + text + headers + attachments;
+the UI renders them in three tabs with external resources stripped by default.
+
+![Message detail — HTML rendering](docs/screenshots/02-message-detail-dark.png)
+
+### Mobile
+
+Master/detail layout collapses to a single pane on small screens — tap a row
+to open the detail, tap back to return.
+
+<p>
+  <img src="docs/screenshots/05-mobile-list.png" alt="Mobile — inbox list" width="320">
+  <img src="docs/screenshots/04-mobile-detail.png" alt="Mobile — message detail" width="320">
+</p>
 
 ## REST API
 

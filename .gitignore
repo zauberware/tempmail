@@ -25,3 +25,6 @@ coverage/
 
 # Wrangler local state
 .mf/
+
+# Playwright MCP artifacts
+.playwright-mcp/
