@@ -14,6 +14,8 @@ import { useInbox } from "@/hooks/useInbox";
 import { useInboxHistory } from "@/hooks/useInboxHistory";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { useI18n } from "@/lib/i18n-context";
+import { tConfirmClear, tMails } from "@/lib/i18n";
 
 const POLL_MS = 5000;
 
@@ -24,6 +26,7 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export default function App() {
+  const { t, lang } = useI18n();
   const qc = useQueryClient();
   const { inbox, setInbox } = useInbox();
   const { entries: history, remove: removeFromHistory } = useInboxHistory(inbox?.address);
@@ -85,7 +88,7 @@ export default function App() {
 
   const onClear = () => {
     if (!inbox || (messagesQ.data?.messages.length ?? 0) === 0) return;
-    if (confirm(`Alle ${messagesQ.data?.messages.length} Mails in ${inbox.address} löschen?`)) {
+    if (confirm(tConfirmClear(messagesQ.data?.messages.length ?? 0, inbox.address, lang))) {
       clearMut.mutate();
     }
   };
@@ -142,7 +145,7 @@ export default function App() {
   if (!inbox || !poolQ.data) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        initialisiere…
+        {t("initializing")}
       </div>
     );
   }
@@ -171,11 +174,11 @@ export default function App() {
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
         <Mail className="size-12 opacity-30" />
         <p className="text-sm">
-          {messages.length} Mails — links auswählen oder{" "}
+          {tMails(messages.length, lang)} — {t("middle_pick_prefix")}{" "}
           <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
             j
           </kbd>{" "}
-          drücken
+          {t("press_to_open")}
         </p>
       </div>
     );

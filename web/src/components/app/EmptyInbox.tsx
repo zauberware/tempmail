@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Copy, Check, MailPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n-context";
 
 interface Props {
   address: string;
 }
 
 export function EmptyInbox({ address }: Props) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -19,13 +21,13 @@ export function EmptyInbox({ address }: Props) {
     <div className="flex h-full flex-col items-center justify-center gap-6 p-4 text-center sm:gap-8 sm:p-8">
       <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
         <MailPlus className="size-4 shrink-0" />
-        <span>Bereit — keine Mails. Adresse kopieren und irgendwo eintragen:</span>
+        <span>{t("empty_pre_address")}</span>
       </div>
 
       <button
         onClick={copy}
         className="group w-full max-w-full break-all rounded-2xl border border-dashed border-border bg-card/40 px-4 py-6 transition-all hover:border-primary/60 hover:bg-card sm:px-6 sm:py-8 md:px-12 md:py-12"
-        aria-label="Adresse kopieren"
+        aria-label={t("copy_address")}
       >
         <div className="select-all font-mono text-base font-semibold tracking-tight sm:text-2xl md:text-4xl">
           {address}
@@ -34,12 +36,12 @@ export function EmptyInbox({ address }: Props) {
           {copied ? (
             <>
               <Check className="size-4 text-green-500" />
-              <span className="text-green-500">In Zwischenablage kopiert</span>
+              <span className="text-green-500">{t("copied_to_clipboard")}</span>
             </>
           ) : (
             <>
               <Copy className="size-4" />
-              <span>Klicken zum Kopieren</span>
+              <span>{t("click_to_copy")}</span>
             </>
           )}
         </div>
@@ -47,13 +49,10 @@ export function EmptyInbox({ address }: Props) {
 
       <Button size="lg" onClick={copy} className="gap-2">
         {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-        {copied ? "Kopiert ✓" : "📋 Adresse kopieren"}
+        {copied ? t("copied_state") : t("copy_address_button")}
       </Button>
 
-      <div className="max-w-md text-xs text-muted-foreground">
-        Sobald eine Mail an diese Adresse geht, taucht sie hier auf. Die Liste
-        aktualisiert sich automatisch alle 5 Sekunden.
-      </div>
+      <div className="max-w-md text-xs text-muted-foreground">{t("empty_subtext")}</div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Paperclip, Inbox } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n-context";
 import type { MessageListItem } from "@/lib/types";
 import { Avatar } from "./Avatar";
 
@@ -48,6 +49,7 @@ function ListSkeleton() {
 }
 
 export function MessageList({ address, messages, activeId, onSelect, isLoading }: Props) {
+  const { t } = useI18n();
   if (isLoading && !messages.length) {
     return <ListSkeleton />;
   }
@@ -56,9 +58,9 @@ export function MessageList({ address, messages, activeId, onSelect, isLoading }
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
         <Inbox className="size-10 opacity-50" />
-        <div className="text-sm">Noch keine Mails</div>
+        <div className="text-sm">{t("no_messages_yet")}</div>
         <div className="text-xs">
-          Adresse:{" "}
+          {t("address_label")}{" "}
           <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
             {address}
           </code>
@@ -98,7 +100,7 @@ export function MessageList({ address, messages, activeId, onSelect, isLoading }
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {m.subject || (
-                        <span className="italic text-muted-foreground">(no subject)</span>
+                        <span className="italic text-muted-foreground">{t("no_subject")}</span>
                       )}
                     </span>
                   </div>

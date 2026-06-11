@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useI18n } from "@/lib/i18n-context";
+import { t as tRaw, type StrKey } from "@/lib/i18n";
 
-const SHORTCUTS: [string, string][] = [
-  ["j / ↓", "Nächste Mail"],
-  ["k / ↑", "Vorherige Mail"],
-  ["Enter", "Mail öffnen"],
-  ["d / Del", "Mail löschen"],
-  ["r", "Refresh"],
-  ["c", "Adresse kopieren"],
-  ["n", "Neue Random-Inbox"],
-  ["E", "Postfach leeren"],
-  ["?", "Diese Hilfe ein-/ausblenden"],
+const SHORTCUTS: { keys: string; desc: StrKey }[] = [
+  { keys: "j / ↓", desc: "sc_next" },
+  { keys: "k / ↑", desc: "sc_prev" },
+  { keys: "Enter", desc: "sc_open" },
+  { keys: "d / Del", desc: "sc_delete" },
+  { keys: "r", desc: "sc_refresh" },
+  { keys: "c", desc: "sc_copy" },
+  { keys: "n", desc: "sc_new" },
+  { keys: "E", desc: "sc_clear" },
+  { keys: "?", desc: "sc_help" },
 ];
 
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export function HelpOverlay({ onMount }: Props = {}) {
+  const { lang } = useI18n();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -53,24 +56,24 @@ export function HelpOverlay({ onMount }: Props = {}) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Tastenkürzel</h2>
+          <h2 className="text-lg font-semibold">{tRaw("shortcuts_title", lang)}</h2>
           <button
             onClick={() => setOpen(false)}
             className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="schließen"
+            aria-label={tRaw("close", lang)}
           >
             <X className="size-4" />
           </button>
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-          {SHORTCUTS.map(([key, desc]) => (
-            <div key={key} className="contents">
+          {SHORTCUTS.map(({ keys, desc }) => (
+            <div key={keys} className="contents">
               <dt>
                 <kbd className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs">
-                  {key}
+                  {keys}
                 </kbd>
               </dt>
-              <dd className="text-sm">{desc}</dd>
+              <dd className="text-sm">{tRaw(desc, lang)}</dd>
             </div>
           ))}
         </dl>

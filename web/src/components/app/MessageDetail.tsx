@@ -18,12 +18,15 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { DropdownItem } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
 import { rewriteCids, stripRemote } from "@/lib/html";
+import { useI18n } from "@/lib/i18n-context";
+import { t as tRaw, type Lang } from "@/lib/i18n";
 import type { Address } from "@/lib/types";
 import { Avatar } from "./Avatar";
 
-function addrStr(a: Address | null | undefined): string {
-  if (!a) return "(unknown)";
-  return a.name ? `${a.name} <${a.address ?? ""}>` : (a.address ?? "(unknown)");
+function addrStr(a: Address | null | undefined, lang: Lang): string {
+  const unknown = tRaw("unknown_sender", lang);
+  if (!a) return unknown;
+  return a.name ? `${a.name} <${a.address ?? ""}>` : (a.address ?? unknown);
 }
 
 function bytesFmt(n: number): string {
@@ -62,6 +65,7 @@ function DetailSkeleton() {
 }
 
 export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) {
+  const { t, lang } = useI18n();
   const qc = useQueryClient();
   const [loadRemote, setLoadRemote] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -94,7 +98,7 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
 
   const rawUrl = api.rawUrl(address, msg.id);
   const hasRemote = !!msg.html && /https?:\/\//.test(msg.html);
-  const fromLine = addrStr(msg.from);
+  const fromLine = addrStr(msg.from, lang);
 
   return (
     <div className="flex h-full flex-col">
@@ -106,17 +110,17 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
               variant="ghost"
               size="icon"
               onClick={onBack}
-              aria-label="Zurück zur Liste"
+              aria-label={t("back_to_list")}
               className="shrink-0"
             >
               <ArrowLeft />
             </Button>
             <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
-              {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
+              {msg.subject || <span className="italic text-muted-foreground">{t("no_subject")}</span>}
             </h1>
             <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Aktionen">
+                <Button variant="ghost" size="icon" aria-label={t("actions_label")}>
                   <MoreVertical />
                 </Button>
               </PopoverTrigger>
@@ -128,18 +132,18 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
                     window.location.href = rawUrl;
                   }}
                 >
-                  .eml herunterladen
+                  {t("download_eml")}
                 </DropdownItem>
                 <DropdownItem
                   icon={<Trash2 className="size-4" />}
                   destructive
                   onClick={() => {
                     setActionsOpen(false);
-                    if (confirm("Mail wirklich löschen?")) del.mutate();
+                    if (confirm(t("confirm_delete"))) del.mutate();
                   }}
                   disabled={del.isPending}
                 >
-                  Löschen
+                  {t("delete")}
                 </DropdownItem>
               </PopoverContent>
             </Popover>
@@ -161,14 +165,14 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
             <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-lg font-semibold">
-                {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
+                {msg.subject || <span className="italic text-muted-foreground">{t("no_subject")}</span>}
               </h1>
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                <dt className="text-muted-foreground">Von</dt>
+                <dt className="text-muted-foreground">{t("from_label")}</dt>
                 <dd className="truncate">{fromLine}</dd>
-                <dt className="text-muted-foreground">An</dt>
+                <dt className="text-muted-foreground">{t("to_label")}</dt>
                 <dd className="truncate">{(msg.to ?? []).map((a) => a.address).join(", ")}</dd>
-                <dt className="text-muted-foreground">Empfangen</dt>
+                <dt className="text-muted-foreground">{t("received_label")}</dt>
                 <dd>
                   {new Date(msg.received_at).toLocaleString()}{" "}
                   <span className="text-muted-foreground">· {bytesFmt(msg.size_bytes)}</span>
@@ -186,11 +190,11 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
               variant="destructive"
               size="sm"
               onClick={() => {
-                if (confirm("Mail wirklich löschen?")) del.mutate();
+                if (confirm(t("confirm_delete"))) del.mutate();
               }}
               disabled={del.isPending}
             >
-              <Trash2 /> Löschen
+              <Trash2 /> {t("delete")}
             </Button>
           </div>
         </div>
@@ -228,11 +232,11 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
                 size="sm"
                 onClick={() => setLoadRemote((v) => !v)}
                 className="gap-2 text-xs"
-                aria-label={loadRemote ? "Externe Inhalte blockieren" : "Externe Inhalte laden"}
+                aria-label={loadRemote ? t("block_external_full") : t("load_external_full")}
               >
                 {loadRemote ? <ImageOff className="size-3" /> : <ImageIcon className="size-3" />}
                 <span className="hidden sm:inline">
-                  {loadRemote ? "Externe blockieren" : "Externe laden"}
+                  {loadRemote ? t("block_external_short") : t("load_external_short")}
                 </span>
               </Button>
             )}
@@ -253,7 +257,7 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
           <TabsContent value="text" className="mt-3 flex-1 overflow-hidden">
             <ScrollArea className="h-full rounded-md border border-border bg-muted/40">
               <pre className="whitespace-pre-wrap break-words p-4 font-mono text-sm">
-                {msg.text || "(kein Textteil)"}
+                {msg.text || t("no_text_part")}
               </pre>
             </ScrollArea>
           </TabsContent>

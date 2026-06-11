@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Copy,
-  Mail,
+  Hourglass,
   Shuffle,
   Check,
   RotateCw,
@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,10 @@ import { DropdownItem, DropdownSeparator } from "@/components/ui/dropdown-menu";
 import { randomLocal } from "@/lib/random";
 import type { InboxHistoryEntry } from "@/hooks/useInboxHistory";
 import { useTheme } from "@/hooks/useTheme";
+import { useI18n } from "@/lib/i18n-context";
+import { tAge, tMails } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageMenu } from "./LanguageMenu";
 
 interface Props {
   address: string;
@@ -55,16 +59,6 @@ function splitAddress(address: string): { local: string; domain: string } {
   return { local: address.slice(0, at), domain: address.slice(at + 1) };
 }
 
-function fmtAge(ts: number): string {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "gerade";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} h`;
-  return `${Math.floor(h / 24)} d`;
-}
-
 export function AddressBar({
   address,
   pool,
@@ -80,6 +74,7 @@ export function AddressBar({
   onShowOnboarding,
   onShowShortcuts,
 }: Props) {
+  const { t, lang, pref, setPref } = useI18n();
   const initial = splitAddress(address);
   const [local, setLocal] = useState(initial.local);
   const [domain, setDomain] = useState(initial.domain || pool[0] || "");
@@ -118,16 +113,21 @@ export function AddressBar({
   const HistoryPopover = (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="Letzte Inboxes" title="Letzte Inboxes">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={t("history_label")}
+          title={t("history_label")}
+        >
           <History />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] p-0">
         <div className="border-b border-border p-3 text-xs font-semibold text-muted-foreground">
-          Verlauf (lokal gespeichert)
+          {t("history_header")}
         </div>
         {history.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">Noch nichts hier.</div>
+          <div className="p-4 text-center text-sm text-muted-foreground">{t("history_empty")}</div>
         ) : (
           <ul className="max-h-80 divide-y divide-border overflow-y-auto">
             {history.map((e) => {
@@ -142,12 +142,12 @@ export function AddressBar({
                     {e.address}
                   </button>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {isCurrent ? "aktiv" : fmtAge(e.lastUsed)}
+                    {isCurrent ? t("active") : tAge(Date.now() - e.lastUsed, lang)}
                   </span>
                   <button
                     onClick={() => onHistoryRemove(e.address)}
                     className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    aria-label="aus Verlauf entfernen"
+                    aria-label={t("history_remove")}
                   >
                     <X className="size-3" />
                   </button>
@@ -165,7 +165,7 @@ export function AddressBar({
       <header className="border-b border-border bg-card/40 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-3 pt-3">
           <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <Mail className="size-5 text-primary" />
+            <Hourglass className="size-5 text-primary" />
             <span>Tempus</span>
           </div>
           <div className="flex items-center gap-2">
@@ -173,11 +173,11 @@ export function AddressBar({
               {messageCount}
             </Badge>
             <Badge variant={isFetching ? "default" : "outline"} className="text-xs">
-              {isFetching ? "lade" : "live"}
+              {isFetching ? t("loading_short") : t("live_state")}
             </Badge>
             <Popover open={moreOpen} onOpenChange={setMoreOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Menü">
+                <Button variant="ghost" size="icon" aria-label={t("menu_label")}>
                   <MoreVertical />
                 </Button>
               </PopoverTrigger>
@@ -189,7 +189,7 @@ export function AddressBar({
                     copy();
                   }}
                 >
-                  {copied ? "Adresse kopiert ✓" : "Adresse kopieren"}
+                  {copied ? t("copy_address_done") : t("copy_address")}
                 </DropdownItem>
                 <DropdownItem
                   icon={<Shuffle className="size-4" />}
@@ -198,7 +198,7 @@ export function AddressBar({
                     randomize();
                   }}
                 >
-                  Neue Random-Adresse
+                  {t("new_random")}
                 </DropdownItem>
                 <DropdownItem
                   icon={<RotateCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />}
@@ -208,7 +208,7 @@ export function AddressBar({
                   }}
                   disabled={isFetching}
                 >
-                  Refresh
+                  {t("refresh_label")}
                 </DropdownItem>
                 <DropdownItem
                   icon={<Trash2 className="size-4" />}
@@ -219,20 +219,39 @@ export function AddressBar({
                   disabled={messageCount === 0}
                   destructive
                 >
-                  Postfach leeren
+                  {t("clear_label")}
                 </DropdownItem>
                 <DropdownSeparator />
                 <DropdownItem icon={<Sun className="size-4" />} onClick={() => setTheme("light")}>
-                  Hell {theme === "light" && "✓"}
+                  {t("theme_light")} {theme === "light" && "✓"}
                 </DropdownItem>
                 <DropdownItem icon={<Moon className="size-4" />} onClick={() => setTheme("dark")}>
-                  Dunkel {theme === "dark" && "✓"}
+                  {t("theme_dark")} {theme === "dark" && "✓"}
                 </DropdownItem>
                 <DropdownItem
                   icon={<Monitor className="size-4" />}
                   onClick={() => setTheme("system")}
                 >
-                  System {theme === "system" && "✓"}
+                  {t("theme_system")} {theme === "system" && "✓"}
+                </DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem
+                  icon={<Languages className="size-4" />}
+                  onClick={() => setPref("auto")}
+                >
+                  {t("lang_auto")} {pref === "auto" && "✓"}
+                </DropdownItem>
+                <DropdownItem
+                  icon={<span className="font-mono text-xs">de</span>}
+                  onClick={() => setPref("de")}
+                >
+                  {t("lang_de")} {pref === "de" && "✓"}
+                </DropdownItem>
+                <DropdownItem
+                  icon={<span className="font-mono text-xs">en</span>}
+                  onClick={() => setPref("en")}
+                >
+                  {t("lang_en")} {pref === "en" && "✓"}
                 </DropdownItem>
                 <DropdownSeparator />
                 <DropdownItem
@@ -242,7 +261,7 @@ export function AddressBar({
                     onShowShortcuts();
                   }}
                 >
-                  Tastenkürzel
+                  {t("shortcuts_label")}
                 </DropdownItem>
                 <DropdownItem
                   icon={<Info className="size-4" />}
@@ -251,7 +270,7 @@ export function AddressBar({
                     onShowOnboarding();
                   }}
                 >
-                  Tour anzeigen
+                  {t("tour_label")}
                 </DropdownItem>
               </PopoverContent>
             </Popover>
@@ -281,7 +300,7 @@ export function AddressBar({
             </SelectContent>
           </Select>
           <Button onClick={apply} className="shrink-0">
-            Übernehmen
+            {t("apply")}
           </Button>
           {HistoryPopover}
         </div>
@@ -292,10 +311,8 @@ export function AddressBar({
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-border bg-card/40 px-4 py-3 backdrop-blur">
       <div className="flex items-center gap-2 font-semibold tracking-tight">
-        <Mail className="size-5 text-primary" />
-        <span>
-          Temp<span className="text-muted-foreground">us</span>
-        </span>
+        <Hourglass className="size-5 text-primary" />
+        <span>Tempus</span>
       </div>
 
       <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -321,22 +338,22 @@ export function AddressBar({
             ))}
           </SelectContent>
         </Select>
-        <Button onClick={apply}>Übernehmen</Button>
+        <Button onClick={apply}>{t("apply")}</Button>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="outline" size="icon" onClick={randomize} aria-label="Random">
+            <Button variant="outline" size="icon" onClick={randomize} aria-label={t("new_random")}>
               <Shuffle />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Random (n)</TooltipContent>
+          <TooltipContent>{t("random_tooltip")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="outline" size="icon" onClick={copy} aria-label="Kopieren">
+            <Button variant="outline" size="icon" onClick={copy} aria-label={t("copy_address")}>
               {copied ? <Check className="text-green-500" /> : <Copy />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{copied ? "Kopiert ✓" : "Adresse kopieren (c)"}</TooltipContent>
+          <TooltipContent>{copied ? t("copied_state") : t("copy_tooltip")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -344,13 +361,13 @@ export function AddressBar({
               variant="outline"
               size="icon"
               onClick={onRefresh}
-              aria-label="Refresh"
+              aria-label={t("refresh_label")}
               disabled={isFetching}
             >
               <RotateCw className={isFetching ? "animate-spin" : ""} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Refresh (r)</TooltipContent>
+          <TooltipContent>{t("refresh_tooltip")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -358,38 +375,51 @@ export function AddressBar({
               variant="outline"
               size="icon"
               onClick={onClear}
-              aria-label="Postfach leeren"
+              aria-label={t("clear_label")}
               disabled={messageCount === 0}
             >
               <Trash2 />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Postfach leeren (Shift+E)</TooltipContent>
+          <TooltipContent>{t("clear_tooltip")}</TooltipContent>
         </Tooltip>
         {HistoryPopover}
       </div>
 
       <div className="flex items-center gap-2">
         <Badge variant="secondary" className="font-mono">
-          {messageCount} {messageCount === 1 ? "Mail" : "Mails"}
+          {tMails(messageCount, lang)}
         </Badge>
-        <Badge variant={isFetching ? "default" : "outline"}>{isFetching ? "lade…" : "live"}</Badge>
+        <Badge variant={isFetching ? "default" : "outline"}>
+          {isFetching ? t("loading_state") : t("live_state")}
+        </Badge>
+        <LanguageMenu />
         <ThemeToggle />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Tastenkürzel" onClick={onShowShortcuts}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("shortcuts_label")}
+              onClick={onShowShortcuts}
+            >
               <HelpCircle />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Tastenkürzel anzeigen (?)</TooltipContent>
+          <TooltipContent>{t("shortcuts_tooltip")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Tour" onClick={onShowOnboarding}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("tour_label")}
+              onClick={onShowOnboarding}
+            >
               <Info />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Tour anzeigen</TooltipContent>
+          <TooltipContent>{t("tour_tooltip")}</TooltipContent>
         </Tooltip>
       </div>
     </header>
