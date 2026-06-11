@@ -8,11 +8,24 @@ const MAX_EML_BYTES = 950 * 1024; // D1 Row-Limit ~1MB, Sicherheitsmarge
 
 type AttachmentContent = string | ArrayBuffer | Uint8Array | undefined;
 
+// postal-mime liefert attachment.content je nach Build entweder als
+// Uint8Array, ArrayBuffer ODER als base64-kodierten String (für binary
+// content in manchen Konfigurationen). Wir muessen alle drei Faelle
+// korrekt nach reinem Bytes-ArrayBuffer dekodieren — sonst landen bei
+// PDFs/Bildern die ASCII-Bytes des base64-Strings in D1 und der Download
+// laesst sich nicht oeffnen.
 function attachmentBytes(content: AttachmentContent): ArrayBuffer {
   if (!content) return new ArrayBuffer(0);
   if (typeof content === "string") {
-    const u8 = new TextEncoder().encode(content);
-    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+    try {
+      const bin = atob(content);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return u8.buffer;
+    } catch {
+      const u8 = new TextEncoder().encode(content);
+      return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+    }
   }
   if (content instanceof ArrayBuffer) return content;
   return content.buffer.slice(
@@ -71,7 +84,24 @@ export default {
     const html = parsed.html ?? null;
     const preview = (text ?? "").trim().slice(0, 500);
     const parsedAttachments = (parsed.attachments ?? []).map((a, idx) => {
+      const t =
+        a.content == null
+          ? "null"
+          : typeof a.content === "string"
+            ? "string"
+            : a.content instanceof ArrayBuffer
+              ? "ArrayBuffer"
+              : "Uint8Array";
+      const inLen =
+        a.content == null
+          ? 0
+          : typeof a.content === "string"
+            ? a.content.length
+            : (a.content as ArrayBuffer | Uint8Array).byteLength;
       const bytes = attachmentBytes(a.content);
+      console.log(
+        `attachment #${idx} ${a.filename} type=${t} in=${inLen} out=${bytes.byteLength}`,
+      );
       return {
         idx,
         filename: a.filename ?? `attachment-${idx}`,
