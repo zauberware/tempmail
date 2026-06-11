@@ -211,6 +211,47 @@ Cron läuft stündlich (`0 * * * *`). Defaults in `src/web.ts`:
 - Messages > **7 Tage** alt → gelöscht (D1 + R2)
 - Inboxes > **30 Tage** inaktiv und leer → gelöscht
 
+## Claude-Code-Skill (für KI-Agents im Team)
+
+Im Repo liegt unter `.claude/skills/tempmail/SKILL.md` eine Claude-Code-Skill,
+die einem Agent erklärt wie er die tempmail-API benutzt (Inbox anlegen,
+Polling, Confirmation-Codes extrahieren). Sobald die Skill in `~/.claude/skills/`
+liegt, lädt sie sich automatisch wenn der Agent z.B. einen Signup-Flow testen
+oder eine Magic-Mail abfangen soll.
+
+### Einmaliges Setup pro Team-Mitglied
+
+```bash
+# Repo klonen (falls noch nicht geschehen)
+git clone git@github.com:zauberware/tempmail.git ~/code/tempmail
+
+# Skill verfügbar machen (Symlink → updated sich mit `git pull`)
+ln -s ~/code/tempmail/.claude/skills/tempmail ~/.claude/skills/tempmail
+
+# Credentials in ~/.zshrc setzen (Werte aus 1Password "tempmail admin")
+export TEMPMAIL_USER='admin'
+export TEMPMAIL_PASS='...'
+```
+
+Danach `source ~/.zshrc` (oder neues Terminal). Im nächsten Claude-Code-Run
+zeigt `/skills` (oder die System-Skill-Liste) `tempmail` als verfügbar.
+
+Optional: Pointer in der globalen `~/.claude/CLAUDE.md`, damit der Agent
+auch dann von der Skill weiß, wenn er gerade keinen Trigger-Match hat:
+
+```markdown
+## Wegwerf-Mails für Tests/Signups
+Wenn du eine temporäre E-Mail-Adresse brauchst (Signup-Flows testen,
+Confirmation-Codes oder Magic-Links abfangen), lade die `tempmail`-Skill.
+Self-hosted Service auf temp.zauberware.org.
+```
+
+### Skill aktualisieren / erweitern
+
+Ist eine normale Datei im Repo — PR auf `.claude/skills/tempmail/SKILL.md`,
+Review, Merge. Alle Team-Mitglieder mit Symlink kriegen die neue Version
+beim nächsten `git pull`.
+
 ## Migration auf VPS (später)
 
 Wenn ihr public werdet oder Cloudflare-AUP-Risiko vermeiden wollt:
