@@ -1,11 +1,21 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2, Paperclip, Image as ImageIcon, ImageOff, ArrowLeft } from "lucide-react";
+import {
+  Download,
+  Trash2,
+  Paperclip,
+  Image as ImageIcon,
+  ImageOff,
+  ArrowLeft,
+  MoreVertical,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { DropdownItem } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
 import { rewriteCids, stripRemote } from "@/lib/html";
 import type { Address } from "@/lib/types";
@@ -22,6 +32,12 @@ function bytesFmt(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function fmtDate(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 interface Props {
   address: string;
   messageId: string;
@@ -32,17 +48,14 @@ interface Props {
 function DetailSkeleton() {
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border p-5">
-        <Skeleton className="mb-3 h-6 w-2/3" />
-        <Skeleton className="mb-2 h-3 w-1/3" />
-        <Skeleton className="mb-2 h-3 w-1/2" />
-        <Skeleton className="h-3 w-1/4" />
+      <div className="border-b border-border p-3 sm:p-5">
+        <Skeleton className="mb-3 h-5 w-2/3" />
+        <Skeleton className="h-3 w-1/2" />
       </div>
-      <div className="space-y-3 p-5">
+      <div className="space-y-3 p-4 sm:p-5">
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-5/6" />
         <Skeleton className="h-3 w-4/6" />
-        <Skeleton className="h-3 w-3/6" />
       </div>
     </div>
   );
@@ -51,6 +64,8 @@ function DetailSkeleton() {
 export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) {
   const qc = useQueryClient();
   const [loadRemote, setLoadRemote] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const isCompact = !!onBack; // we only pass onBack on mobile
 
   const { data: msg, isLoading } = useQuery({
     queryKey: ["message", address, messageId],
@@ -79,12 +94,14 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
 
   const rawUrl = api.rawUrl(address, msg.id);
   const hasRemote = !!msg.html && /https?:\/\//.test(msg.html);
+  const fromLine = addrStr(msg.from);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
-        <div className="flex min-w-0 flex-1 gap-3">
-          {onBack && (
+      {isCompact ? (
+        <div className="border-b border-border">
+          {/* Row 1: back + subject + actions menu */}
+          <div className="flex items-center gap-2 px-2 py-2">
             <Button
               variant="ghost"
               size="icon"
@@ -94,46 +111,93 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
             >
               <ArrowLeft />
             </Button>
-          )}
-          <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold">
+            <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
               {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
             </h1>
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt className="text-muted-foreground">Von</dt>
-              <dd className="truncate">{addrStr(msg.from)}</dd>
-              <dt className="text-muted-foreground">An</dt>
-              <dd className="truncate">{(msg.to ?? []).map((a) => a.address).join(", ")}</dd>
-              <dt className="text-muted-foreground">Empfangen</dt>
-              <dd>
-                {new Date(msg.received_at).toLocaleString()}{" "}
-                <span className="text-muted-foreground">· {bytesFmt(msg.size_bytes)}</span>
-              </dd>
-            </dl>
+            <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Aktionen">
+                  <MoreVertical />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-44 p-1">
+                <DropdownItem
+                  icon={<Download className="size-4" />}
+                  onClick={() => {
+                    setActionsOpen(false);
+                    window.location.href = rawUrl;
+                  }}
+                >
+                  .eml herunterladen
+                </DropdownItem>
+                <DropdownItem
+                  icon={<Trash2 className="size-4" />}
+                  destructive
+                  onClick={() => {
+                    setActionsOpen(false);
+                    if (confirm("Mail wirklich löschen?")) del.mutate();
+                  }}
+                  disabled={del.isPending}
+                >
+                  Löschen
+                </DropdownItem>
+              </PopoverContent>
+            </Popover>
+          </div>
+          {/* Row 2: avatar + from + meta */}
+          <div className="flex items-center gap-2 px-3 pt-1 pb-3 text-xs">
+            <Avatar name={msg.from?.name} email={msg.from?.address} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium text-foreground">{fromLine}</div>
+              <div className="truncate text-muted-foreground">
+                {fmtDate(msg.received_at)} · {bytesFmt(msg.size_bytes)}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={rawUrl} download={`${msg.id}.eml`}>
-              <Download /> .eml
-            </a>
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              if (confirm("Mail wirklich löschen?")) del.mutate();
-            }}
-            disabled={del.isPending}
-          >
-            <Trash2 /> Löschen
-          </Button>
+      ) : (
+        <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
+          <div className="flex min-w-0 flex-1 gap-3">
+            <Avatar name={msg.from?.name} email={msg.from?.address} size="md" />
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-lg font-semibold">
+                {msg.subject || <span className="italic text-muted-foreground">(no subject)</span>}
+              </h1>
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt className="text-muted-foreground">Von</dt>
+                <dd className="truncate">{fromLine}</dd>
+                <dt className="text-muted-foreground">An</dt>
+                <dd className="truncate">{(msg.to ?? []).map((a) => a.address).join(", ")}</dd>
+                <dt className="text-muted-foreground">Empfangen</dt>
+                <dd>
+                  {new Date(msg.received_at).toLocaleString()}{" "}
+                  <span className="text-muted-foreground">· {bytesFmt(msg.size_bytes)}</span>
+                </dd>
+              </dl>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href={rawUrl} download={`${msg.id}.eml`}>
+                <Download /> .eml
+              </a>
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirm("Mail wirklich löschen?")) del.mutate();
+              }}
+              disabled={del.isPending}
+            >
+              <Trash2 /> Löschen
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {(msg.attachments ?? []).length > 0 && (
-        <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3">
+        <div className="flex flex-wrap gap-2 border-b border-border px-3 py-2 sm:px-5 sm:py-3">
           {(msg.attachments ?? []).map((a) => (
             <Badge key={a.filename} variant="outline" asChild>
               <a
@@ -150,7 +214,7 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
         </div>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden p-5">
+      <div className="flex flex-1 flex-col overflow-hidden p-3 sm:p-5">
         <Tabs defaultValue={msg.html ? "html" : "text"} className="flex h-full flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <TabsList>
@@ -164,9 +228,12 @@ export function MessageDetail({ address, messageId, onDeleted, onBack }: Props) 
                 size="sm"
                 onClick={() => setLoadRemote((v) => !v)}
                 className="gap-2 text-xs"
+                aria-label={loadRemote ? "Externe Inhalte blockieren" : "Externe Inhalte laden"}
               >
                 {loadRemote ? <ImageOff className="size-3" /> : <ImageIcon className="size-3" />}
-                {loadRemote ? "Externe Inhalte blockieren" : "Externe Bilder/Stylesheets laden"}
+                <span className="hidden sm:inline">
+                  {loadRemote ? "Externe blockieren" : "Externe laden"}
+                </span>
               </Button>
             )}
           </div>
