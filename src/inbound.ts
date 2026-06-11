@@ -6,11 +6,19 @@ import { randomToken } from "./lib/random";
 
 const MAX_EML_BYTES = 950 * 1024; // D1 Row-Limit ~1MB, Sicherheitsmarge
 
-function attachmentSize(content: string | ArrayBuffer | Uint8Array | undefined): number {
-  if (!content) return 0;
-  if (typeof content === "string") return new TextEncoder().encode(content).byteLength;
-  if (content instanceof ArrayBuffer) return content.byteLength;
-  return content.byteLength;
+type AttachmentContent = string | ArrayBuffer | Uint8Array | undefined;
+
+function attachmentBytes(content: AttachmentContent): ArrayBuffer {
+  if (!content) return new ArrayBuffer(0);
+  if (typeof content === "string") {
+    const u8 = new TextEncoder().encode(content);
+    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+  }
+  if (content instanceof ArrayBuffer) return content;
+  return content.buffer.slice(
+    content.byteOffset,
+    content.byteOffset + content.byteLength,
+  ) as ArrayBuffer;
 }
 
 async function readableToBuffer(stream: ReadableStream<Uint8Array>): Promise<ArrayBuffer> {
@@ -62,20 +70,34 @@ export default {
     const text = parsed.text ?? null;
     const html = parsed.html ?? null;
     const preview = (text ?? "").trim().slice(0, 500);
-    const attachmentsMeta = (parsed.attachments ?? []).map((a) => ({
-      filename: a.filename ?? "attachment",
-      mimeType: a.mimeType ?? "application/octet-stream",
-      size: attachmentSize(a.content),
-      contentId: a.contentId ?? null,
-      disposition: a.disposition ?? null,
-    }));
+    const parsedAttachments = (parsed.attachments ?? []).map((a, idx) => {
+      const bytes = attachmentBytes(a.content);
+      return {
+        idx,
+        filename: a.filename ?? `attachment-${idx}`,
+        mimeType: a.mimeType ?? "application/octet-stream",
+        contentId: (a.contentId ?? "").replace(/^<|>$/g, "") || null,
+        disposition: a.disposition ?? null,
+        size: bytes.byteLength,
+        bytes,
+      };
+    });
+    const attachmentsMeta = parsedAttachments.map(
+      ({ filename, mimeType, contentId, disposition, size }) => ({
+        filename,
+        mimeType,
+        contentId,
+        disposition,
+        size,
+      }),
+    );
     const hasAttachments = attachmentsMeta.length > 0 ? 1 : 0;
     const toJson = JSON.stringify(parsed.to ?? []);
     const ccJson = JSON.stringify(parsed.cc ?? []);
     const headersJson = JSON.stringify(parsed.headers ?? []);
     const attachmentsMetaJson = JSON.stringify(attachmentsMeta);
 
-    await env.DB.batch([
+    const stmts = [
       env.DB.prepare(
         `INSERT INTO inboxes (address, created_at, last_seen_at, owner_token)
          VALUES (?, ?, ?, ?)
@@ -105,6 +127,18 @@ export default {
         headersJson,
         attachmentsMetaJson,
       ),
-    ]);
+    ];
+
+    for (const a of parsedAttachments) {
+      stmts.push(
+        env.DB.prepare(
+          `INSERT INTO attachments
+             (message_id, idx, filename, mime_type, content_id, disposition, size_bytes, content)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(id, a.idx, a.filename, a.mimeType, a.contentId, a.disposition, a.size, a.bytes),
+      );
+    }
+
+    await env.DB.batch(stmts);
   },
 } satisfies ExportedHandler<Env>;

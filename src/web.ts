@@ -1,15 +1,17 @@
 import { Hono } from "hono";
-import PostalMime from "postal-mime";
 import type { Env } from "./lib/env";
 import { isPoolDomain, poolDomains } from "./lib/env";
 import { basicAuth } from "./lib/auth";
 import { randomSlug, randomToken } from "./lib/random";
 import {
   deleteMessage,
+  getAttachmentByCid,
+  getAttachmentByFilename,
   getInbox,
   getMessageDetail,
   getMessageWithRaw,
   listMessages,
+  messageBelongsToInbox,
   touchInbox,
   upsertInbox,
 } from "./lib/db";
@@ -72,19 +74,6 @@ app.get("/api/inboxes/:address/messages", async (c) => {
   });
 });
 
-function attachmentBytes(content: string | ArrayBuffer | Uint8Array | undefined): ArrayBuffer {
-  if (!content) return new ArrayBuffer(0);
-  if (typeof content === "string") {
-    const u8 = new TextEncoder().encode(content);
-    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
-  }
-  if (content instanceof ArrayBuffer) return content;
-  return content.buffer.slice(
-    content.byteOffset,
-    content.byteOffset + content.byteLength,
-  ) as ArrayBuffer;
-}
-
 function safeJsonParse<T>(input: string | null, fallback: T): T {
   if (!input) return fallback;
   try {
@@ -134,14 +123,14 @@ app.get("/api/inboxes/:address/messages/:id/attachments/:name", async (c) => {
   const address = c.req.param("address").toLowerCase();
   const id = c.req.param("id");
   const name = c.req.param("name");
-  const row = await getMessageWithRaw(c.env, address, id);
-  if (!row) return c.json({ error: "not_found" }, 404);
-  const parsed = await PostalMime.parse(row.raw_eml);
-  const att = (parsed.attachments ?? []).find((a) => a.filename === name);
-  if (!att || !att.content) return c.json({ error: "attachment_not_found" }, 404);
-  return new Response(attachmentBytes(att.content), {
+  if (!(await messageBelongsToInbox(c.env, address, id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const att = await getAttachmentByFilename(c.env, id, name);
+  if (!att) return c.json({ error: "attachment_not_found" }, 404);
+  return new Response(att.content, {
     headers: {
-      "Content-Type": att.mimeType || "application/octet-stream",
+      "Content-Type": att.mime_type || "application/octet-stream",
       "Content-Disposition": `attachment; filename="${att.filename}"`,
     },
   });
@@ -160,17 +149,14 @@ app.get("/api/inboxes/:address/messages/:id/cid/:cid", async (c) => {
   const address = c.req.param("address").toLowerCase();
   const id = c.req.param("id");
   const wanted = c.req.param("cid").replace(/^<|>$/g, "");
-  const row = await getMessageWithRaw(c.env, address, id);
-  if (!row) return c.json({ error: "not_found" }, 404);
-  const parsed = await PostalMime.parse(row.raw_eml);
-  const att = (parsed.attachments ?? []).find((a) => {
-    const cid = (a.contentId || "").replace(/^<|>$/g, "");
-    return cid === wanted;
-  });
-  if (!att || !att.content) return c.json({ error: "cid_not_found" }, 404);
-  return new Response(attachmentBytes(att.content), {
+  if (!(await messageBelongsToInbox(c.env, address, id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const att = await getAttachmentByCid(c.env, id, wanted);
+  if (!att) return c.json({ error: "cid_not_found" }, 404);
+  return new Response(att.content, {
     headers: {
-      "Content-Type": att.mimeType || "application/octet-stream",
+      "Content-Type": att.mime_type || "application/octet-stream",
       "Cache-Control": "private, max-age=3600",
     },
   });
