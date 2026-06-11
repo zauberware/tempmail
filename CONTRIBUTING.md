@@ -1,12 +1,12 @@
 # Contributing
 
-Internes Projekt — primär Zauberware-Team. Trotzdem für klare Workflows hier die Konventionen.
+PRs welcome. The project is maintained by Zauberware but external contributions are encouraged — bug reports, feature ideas, and patches.
 
 ## Branches & PRs
 
-- `main` ist deploy-tracking: jeder Push deployt automatisch auf Cloudflare.
-- Direkter Push auf `main` ist OK für triviale Änderungen (Tippfehler, README).
-- Für alles andere: Feature-Branch → PR → CI grün → merge.
+- `main` is deploy-tracking on the maintainer's instance: every push to `main` auto-deploys to Cloudflare.
+- For contributions: open a feature branch → PR → CI green → review → merge.
+- For trivial fixes (typos, README), a direct push to `main` is fine if you have commit access; otherwise a PR.
 
 ## Lokale Checks vor Push
 
